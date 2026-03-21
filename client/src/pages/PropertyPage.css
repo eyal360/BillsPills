@@ -1,0 +1,189 @@
+.summary-section {
+  background: linear-gradient(145deg, rgba(108, 63, 255, 0.15) 0%, var(--bg-card) 100%);
+  border-color: rgba(108, 63, 255, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 2px;
+  padding: 10px 20px;
+  margin-bottom: 4px;
+  position: relative; /* already added in JSX but redundant in CSS is fine */
+}
+
+.chart-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  z-index: 10;
+  font-size: 1.1rem;
+}
+
+.chart-btn:hover {
+  transform: scale(1.1);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 10px var(--brand-glow);
+}
+
+.summary-label {
+  letter-spacing: 0.5px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.summary-total {
+  font-size: clamp(2.2rem, 9vw, 3.2rem);
+  font-weight: 900;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  /* Explicit color so it's always visible regardless of theme */
+  color: var(--brand-primary);
+  transition: opacity var(--transition-fast);
+}
+
+.summary-total:hover { opacity: 0.8; }
+
+.summary-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.time-filter {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-xs);
+  align-items: center;
+  width: 100%;
+  margin-top: var(--space-sm);
+}
+
+.time-filter > *:not(button) {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-reset-btn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.bills-section { 
+  margin-top: var(--space-2xl); 
+}
+
+.bills-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-bottom: 80px; /* space for toast */
+  position: relative;
+}
+
+.bills-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: var(--space-sm) 0;
+}
+
+.bills-divider span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.bills-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.1), transparent);
+}
+
+.bill-container-expandable {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.bill-container-expandable.expanded {
+  z-index: 1010;
+}
+
+.global-blur-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1005;
+  animation: fadeInBlur 0.3s ease;
+}
+
+@keyframes fadeInBlur {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Undo Toast */
+.undo-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-modal);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-xl);
+  z-index: 1000;
+  animation: slideUpToast 0.3s ease-out;
+}
+
+.undo-toast span {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.undo-toast button {
+  background: var(--brand-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@keyframes slideUpToast {
+  from { transform: translate(-50%, 20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+

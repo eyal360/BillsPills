@@ -1,0 +1,116 @@
+/* Layout Component Styles */
+
+.layout {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-main {
+  flex: 1;
+}
+
+/* Header */
+.header-start {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 100px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.logo-icon {
+  font-size: 1.4rem;
+  animation: float 3s ease-in-out infinite;
+}
+
+.logo-text {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+/* Icon button */
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.icon-btn:hover {
+  border-color: var(--brand-primary);
+  background: var(--bg-card-hover);
+}
+
+.drop-shadow-text {
+  text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.fade-header {
+  background: rgba(245, 245, 245, 0.5) !important; /* Will be overwritten by theme vars if preferred, but transparent works */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  /* This mask makes the blur smoothly fade out at the bottom edge */
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
+[data-theme="dark"] .fade-header {
+  background: rgba(30, 30, 30, 0.5) !important;
+}
+
+/* Theme toggle */
+.theme-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: all var(--transition-base);
+}
+
+.toggle-on {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.toggle-on::after {
+  right: auto;
+  left: 3px;
+  background: white;
+}

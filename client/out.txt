@@ -1,0 +1,16 @@
+src/components/AddBillModal.tsx(2,10): error TS1484: 'Bill' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/AddBillModal.tsx(2,16): error TS1484: 'OcrResult' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/AddPropertyModal.tsx(2,10): error TS1484: 'Property' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/BillCard.tsx(2,10): error TS1484: 'Bill' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/ExpenseModal.tsx(2,10): error TS1484: 'ExpenseSummary' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/contexts/AuthContext.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/contexts/AuthContext.tsx(1,65): error TS1484: 'ReactNode' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/contexts/AuthContext.tsx(2,10): error TS1484: 'User' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/contexts/SettingsContext.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/contexts/SettingsContext.tsx(1,65): error TS1484: 'ReactNode' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/AdminPage.tsx(4,10): error TS1484: 'User' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/AdminUserView.tsx(4,10): error TS1484: 'Property' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/HomePage.tsx(4,10): error TS1484: 'Property' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/PropertyPage.tsx(4,10): error TS1484: 'Property' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/PropertyPage.tsx(4,20): error TS1484: 'Bill' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/PropertyPage.tsx(4,26): error TS1484: 'ExpenseSummary' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.

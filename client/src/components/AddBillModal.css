@@ -1,0 +1,178 @@
+.step-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+  margin-bottom: 8px;
+  background: rgba(8, 166, 119, 0.1);
+  padding: 4px 10px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.modal-header .modal-title {
+  margin: 0;
+}
+
+.calendar-trigger {
+  position: relative;
+  cursor: pointer;
+}
+
+.date-range-display {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 16px;
+  padding-left: 40px;
+  cursor: pointer;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.date-range-display:hover {
+  border-color: var(--brand-primary);
+  background: rgba(108, 63, 255, 0.05);
+}
+
+/* Calendar Overlay for mobile overflow issues */
+.calendar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 10px;
+}
+
+.calendar-popover {
+  background: var(--bg-modal);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  padding: 16px;
+  width: auto;
+  min-width: 320px;
+  max-width: 95vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* DayPicker Theme Integration */
+.custom-rdp {
+  --rdp-accent-color: var(--brand-primary);
+  --rdp-background-light: rgba(8, 166, 119, 0.15); /* Slightly more prominent but natural */
+  --rdp-outline: 2px solid var(--brand-primary);
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.custom-rdp .rdp-day_selected {
+  background-color: var(--brand-primary) !important;
+  color: #fff !important;
+  font-weight: 700;
+  border-radius: 50% !important;
+}
+
+.custom-rdp .rdp-day_range_middle {
+  background-color: var(--rdp-background-light) !important;
+  color: var(--text-primary) !important;
+  border-radius: 0 !important;
+}
+
+.custom-rdp .rdp-months {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 20px;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .custom-rdp .rdp-months {
+    flex-direction: column !important;
+  }
+}
+
+.custom-rdp .rdp-caption_label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.calendar-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  opacity: 0.7;
+}
+
+.calendar-footer {
+  margin-top: 16px;
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Nav arrows RTL */
+[dir="rtl"] .rdp-nav_button {
+  transform: scaleX(-1);
+}
+
+/* Layout Polish */
+.step-selection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+}
+
+.status-toggle-container {
+  display: flex;
+  background: var(--bg-input);
+  border-radius: 25px;
+  padding: 4px;
+  margin-top: 8px;
+  gap: 2px;
+}
+
+.status-toggle-btn {
+  flex: 1;
+  padding: 8px 2px;
+  border-radius: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.82rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.status-toggle-btn.active.paid { background: #08A677; color: #fff; font-weight: 700; }
+.status-toggle-btn.active.partial { background: #FF9800; color: #fff; font-weight: 700; }
+.status-toggle-btn.active.waiting { background: #FF416C; color: #fff; font-weight: 700; }
+
+.submit-btn {
+  margin-top: var(--space-md);
+  padding: 14px;
+  font-weight: 700;
+}

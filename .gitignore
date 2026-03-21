@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+logs/
+*.log
+.DS_Store
+.vscode/
+.idea/
+npm-debug.log*
+yarn-debug.log*
+
+# Server specific
+server/dist/
+server/logs/
+
+# Client specific
+client/dist/
+client/dev-dist/
+client/.cache/

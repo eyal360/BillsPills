@@ -1,0 +1,188 @@
+.bill-card-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 50px;
+  padding: 12px 20px;
+  margin-bottom: 12px;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: visible !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  touch-action: pan-y; /* permit vertical scrolls but catch horizontal */
+}
+
+.bill-card-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.bill-card-pill.paid {
+  opacity: 0.6;
+  filter: grayscale(0.4);
+}
+
+.bill-card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.bill-icon-pill {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem; /* Larger emoji */
+  margin-right: -4px; /* Closer to the right edge */
+}
+
+.bill-type-pill {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.bill-date-pill {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+  direction: ltr;
+}
+
+.bill-amount-pill {
+  font-weight: 800;
+  font-size: 1.3rem;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.badge-pill {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-pill.waiting { color: #FF416C !important; }
+.badge-pill.partial { color: #FFA726 !important; }
+.badge-pill.paid { color: #08A677 !important; }
+
+/* Kebab Menu Styles - Force Visibility */
+.bill-kebab-container {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+}
+
+.kebab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  opacity: 0.8;
+  font-size: 1.6rem;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.kebab-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+.kebab-dropdown {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #1e1e1e !important; /* Solid dark */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  min-width: 140px;
+  overflow: hidden;
+  z-index: 1000;
+  animation: dropdownFade 0.2s ease-out;
+  opacity: 1 !important; /* Never transparent */
+  filter: none !important; /* Never grayed out */
+}
+
+/* Rest of kebab styles ... */
+
+.kebab-option {
+  width: 100%;
+  text-align: right;
+  padding: 14px 18px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  display: block;
+  transition: background 0.2s;
+}
+
+.kebab-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.kebab-option.edit { color: #9e9e9e !important; }
+.kebab-option.pay { color: #08A677 !important; }
+.kebab-option.partial { color: #FFA726 !important; }
+.kebab-option.delete { color: #FF416C !important; }
+
+@keyframes dropdownFade {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Swipe animations - Background Style */
+.bill-swipe-wrapper {
+  position: relative;
+  transition: transform 0.2s ease-out;
+  z-index: 1;
+}
+
+.quick-pay-btn {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 44px;
+  width: 70px;
+  background: #08A677;
+  color: white;
+  border: none;
+  border-radius: 22px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(8, 166, 119, 0.3);
+  opacity: 0;
+  transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.quick-pay-btn:active {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.quick-pay-btn.visible {
+  opacity: 1;
+}
+
+

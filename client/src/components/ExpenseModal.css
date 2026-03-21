@@ -1,0 +1,44 @@
+.expense-modal-content.better-pie {
+  max-width: 800px;
+  width: 95vw;
+  height: 95dvh;
+  overflow: hidden;
+  display: flex !important;
+  flex-direction: column;
+}
+
+.modal-header { flex-shrink: 0; }
+.summary-section { flex-shrink: 0; }
+
+.responsive-pie-full {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0; /* Allow shrinking in flex */
+  overflow: hidden;
+}
+
+
+.recharts-custom-label {
+  font-family: inherit !important;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.05);
+  pointer-events: none;
+}
+
+.recharts-pie-sector {
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+}
+
+.recharts-pie-sector:hover {
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15)) brightness(1.05);
+  transform-origin: center;
+  transition: all 0.3s ease;
+}
+
+.chart-hint {
+  margin-top: 10px;
+  text-align: center;
+  opacity: 0.7;
+}

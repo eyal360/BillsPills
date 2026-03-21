@@ -1,0 +1,145 @@
+/* ── Trigger Button ── */
+.custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-align: right;
+  direction: rtl;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.custom-select-trigger:hover:not(.disabled) {
+  border-color: var(--brand-primary);
+}
+
+.custom-select-trigger.error {
+  border-color: #ff4d4d !important;
+  box-shadow: 0 0 0 1px #ff4d4d !important;
+}
+
+.custom-select-trigger.error .custom-select-value {
+  color: #ff4d4d !important;
+}
+
+.custom-select-trigger.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.custom-select-value {
+  flex: 1;
+  text-align: right;
+}
+
+.custom-select-value.placeholder {
+  color: var(--text-muted);
+}
+
+.custom-select-chevron {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  transform: rotate(90deg);
+  display: inline-block;
+  transition: transform var(--transition-fast);
+  margin-right: auto;
+  margin-left: 8px;
+}
+
+/* ── Backdrop ── */
+.custom-select-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+
+/* ── Bottom Sheet ── */
+.custom-select-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg-card);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: 8px 0 32px;
+  max-height: 60dvh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.custom-select-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+  margin: 4px auto 12px;
+  flex-shrink: 0;
+}
+
+/* ── Options List ── */
+.custom-select-options {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1rem;
+  cursor: pointer;
+  text-align: right;
+  direction: rtl;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast), color var(--transition-fast);
+  width: 100%;
+}
+
+.custom-select-option:hover {
+  background: var(--bg-surface);
+}
+
+.custom-select-option + .custom-select-option {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.custom-select-option.selected {
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+.custom-select-check {
+  color: var(--brand-primary);
+  font-size: 1.1rem;
+  margin-left: 8px;
+  flex-shrink: 0;
+}

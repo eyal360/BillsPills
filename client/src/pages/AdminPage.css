@@ -1,0 +1,78 @@
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+@media (min-width: 480px) {
+  .admin-stats-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-md);
+  gap: var(--space-xs);
+}
+
+.stat-icon { font-size: 1.5rem; }
+
+.stat-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.admin-total {
+  text-align: center;
+  padding: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  background: linear-gradient(135deg, rgba(108, 63, 255, 0.1) 0%, var(--bg-card) 100%);
+}
+
+.admin-total-amount {
+  font-size: 1.8rem;
+  font-weight: 900;
+}
+
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.user-card-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--gradient-brand);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.user-card-info { flex: 1; min-width: 0; }
+
+.user-card-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}

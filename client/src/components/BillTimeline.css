@@ -1,0 +1,118 @@
+.bill-timeline-container {
+  background: rgba(30, 30, 30, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-top: 12px;
+  width: 100%;
+  animation: slideDownIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@keyframes slideDownIn {
+  0% { transform: translateY(-20px); opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; }
+  100% { transform: translateY(0); opacity: 1; max-height: 1000px; }
+}
+
+.timeline-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 24px;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-dot-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--brand-primary);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--brand-glow);
+  z-index: 2;
+}
+
+.timeline-line {
+  position: absolute;
+  top: 12px;
+  bottom: -24px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 1;
+}
+
+.timeline-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.timeline-event-title {
+  font-weight: 600;
+  color: #fff;
+}
+
+.timeline-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.timeline-note {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.timeline-loading, .timeline-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+}
+
+.spinner-sm {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--brand-primary);
+  border-radius: 50%;
+  animation: rotate 1s linear infinite;
+  display: inline-block;
+  margin-left: 8px;
+}
