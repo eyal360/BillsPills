@@ -7,9 +7,10 @@ import './Layout.css';
 interface LayoutProps {
   children: React.ReactNode;
   title?: string;
+  showBack?: boolean;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, title, showBack }) => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -110,23 +111,47 @@ export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
           pointerEvents: 'none' // Allow scrolling underlying content when clicking empty parts of header
         }}
       >
-        {/* Visual Right Side (RTL Start) - User Profile */}
-        <div 
-          onClick={handleUserClick}
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            cursor: 'pointer',
-            pointerEvents: 'auto'
-          }}
-        >
-          <div className="user-avatar" style={{ width: 36, height: 36, fontSize: '1rem' }}>
-            {(user?.full_name || user?.email || 'U')[0].toUpperCase()}
-          </div>
-          {user?.full_name && (
-            <span className="font-semibold text-sm drop-shadow-text">{user.full_name.split(' ')[0]}</span>
+        {/* Visual Right Side (RTL Start) - User Profile or Back */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {showBack && (
+            <button 
+              onClick={() => navigate(-1)}
+              style={{ 
+                background: 'rgba(255,255,255,0.05)', 
+                border: 'none', 
+                borderRadius: 'var(--radius-full)', 
+                width: '36px', 
+                height: '36px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: 'var(--brand-primary)',
+                fontSize: '1.4rem',
+                cursor: 'pointer',
+                pointerEvents: 'auto'
+              }}
+              title="חזור"
+            >
+              ←
+            </button>
           )}
+          <div 
+            onClick={handleUserClick}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              cursor: 'pointer',
+              pointerEvents: 'auto'
+            }}
+          >
+            <div className="user-avatar" style={{ width: 36, height: 36, fontSize: '1rem' }}>
+              {(user?.full_name || user?.email || 'U')[0].toUpperCase()}
+            </div>
+            {user?.full_name && (
+              <span className="font-semibold text-sm drop-shadow-text">{user.full_name.split(' ')[0]}</span>
+            )}
+          </div>
         </div>
 
         {/* Visual Left Side (RTL End) - Logo */}

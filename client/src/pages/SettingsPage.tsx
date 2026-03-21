@@ -19,7 +19,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <Layout title="הגדרות">
+    <Layout showBack={true} title="הגדרות">
       <div className="page-content">
         <div className="settings-section card">
           <h3 className="settings-section-title">מראה</h3>
