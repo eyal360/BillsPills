@@ -5,6 +5,7 @@ import type { Property, Bill } from '../types';
 import api from '../lib/api';
 import { AddPropertyModal } from '../components/AddPropertyModal';
 import { AddBillModal } from '../components/AddBillModal';
+import { PillLoader } from '../components/PillLoader';
 import './HomePage.css';
 
 const PROPERTY_EMOJIS = ['🏠', '🏢', '🏗️', '🏬', '🏰', '🏡', '🏦', '🏪'];
@@ -12,18 +13,28 @@ const PROPERTY_EMOJIS = ['🏠', '🏢', '🏗️', '🏬', '🏰', '🏡', '�
 export const HomePage: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDataFetched, setIsDataFetched] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddBillModal, setShowAddBillModal] = useState(false);
   const navigate = useNavigate();
 
   const fetchProperties = async () => {
+    const startTime = Date.now();
     try {
       const res = await api.get('/properties');
       setProperties(res.data);
+
+      const elapsed = Date.now() - startTime;
+      const minWait = 2000;
+      const remaining = Math.max(0, minWait - elapsed);
+
+      setTimeout(() => {
+        setIsDataFetched(true);
+      }, remaining);
+
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
+      setLoading(false); // Immediate exit on error
     }
   };
 
@@ -40,52 +51,65 @@ export const HomePage: React.FC = () => {
     setShowAddBillModal(false);
   };
 
+  if (loading) return (
+    <div className="loading-overlay" style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 9999,
+      background: 'rgba(15, 10, 30, 0.8)',
+      backdropFilter: 'blur(12px)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <PillLoader
+        demo={!isDataFetched}
+        loadingProgress={isDataFetched ? 80 : 20}
+        isCompleting={isDataFetched}
+        onComplete={() => setLoading(false)}
+      />
+    </div>
+  );
+
   return (
     <Layout>
       <div className="page-content">
         <div className="home-header">
-          <h2 className="section-title">הנכסים שלי</h2>
-          <button 
-            className="btn btn-primary btn-sm global-ocr-btn"
+          <button
+            className="btn btn-primary global-ocr-btn"
             onClick={() => setShowAddBillModal(true)}
           >
-            📸 העלה חשבון מהיר
+            העלאת חשבון חדש
           </button>
         </div>
 
-        {loading ? (
-          <div className="loading-center">
-            <div className="spinner" />
-            <span>טוען נכסים...</span>
-          </div>
-        ) : (
-          <div className="properties-grid">
-            {properties.map((prop, idx) => (
-              <div
-                key={prop.id}
-                className="property-card card card-interactive"
-                onClick={() => navigate(`/property/${prop.id}`)}
-              >
-                <div className="property-emoji">
-                  {PROPERTY_EMOJIS[idx % PROPERTY_EMOJIS.length]}
-                </div>
-                <div className="property-name">{prop.name}</div>
-                {prop.address && (
-                  <div className="property-address">{prop.address}</div>
-                )}
-              </div>
-            ))}
-
-            <button
-              className="add-property-card"
-              onClick={() => setShowAddModal(true)}
-              aria-label="הוסף נכס חדש"
+        <div className="properties-grid">
+          {properties.map((prop, idx) => (
+            <div
+              key={prop.id}
+              className="property-card card card-interactive"
+              onClick={() => navigate(`/property/${prop.id}`)}
             >
-              <div className="add-icon">+</div>
-              <div className="text-sm font-semibold">נכס חדש</div>
-            </button>
-          </div>
-        )}
+              <div className="property-emoji">
+                {prop.icon || PROPERTY_EMOJIS[idx % PROPERTY_EMOJIS.length]}
+              </div>
+              <div className="property-name">{prop.name}</div>
+              {prop.address && (
+                <div className="property-address">{prop.address}</div>
+              )}
+            </div>
+          ))}
+
+          <button
+            className="add-property-card"
+            onClick={() => setShowAddModal(true)}
+            aria-label="הוסף נכס חדש"
+          >
+            <div className="add-icon">+</div>
+            <div className="text-sm font-semibold">נכס חדש</div>
+          </button>
+        </div>
       </div>
 
       {showAddModal && (

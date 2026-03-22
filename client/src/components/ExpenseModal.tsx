@@ -71,13 +71,19 @@ export const ExpenseModal: React.FC<Props> = ({
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
-        <div className="summary-section card" style={{ background: 'var(--bg-input)', border: 'none', marginBottom: 'var(--space-md)' }}>
-          <div className="summary-total" style={{ fontSize: '2.4rem' }}>
+        <div className="summary-section card" style={{ 
+          background: 'var(--bg-input)', 
+          border: 'none', 
+          marginBottom: 'var(--space-md)', 
+          padding: '8px 16px',
+          gap: '2px' 
+        }}>
+          <div className="summary-total" style={{ fontSize: '2.4rem', lineHeight: '1' }}>
             ₪{total.toLocaleString('he-IL', { minimumFractionDigits: 1 })}
           </div>
-          <div className="summary-label">{summaryLabel}</div>
+          <div className="summary-label" style={{ fontSize: '0.75rem' }}>{summaryLabel}</div>
 
-          <div className="time-filter" dir="rtl">
+          <div className="time-filter" style={{ marginTop: '8px' }} dir="rtl">
             <CustomSelect
               value={filterYear != null ? String(filterYear) : ''}
               onChange={val => { setFilterYear(val ? Number(val) : null); setFilterMonth(null); }}

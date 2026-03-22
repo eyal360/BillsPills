@@ -46,3 +46,44 @@
   border-radius: var(--radius-md);
   font-size: 0.875rem;
 }
+
+.icon-selector-wrapper {
+  position: relative;
+  width: 60px;
+  height: 52px;
+}
+
+.icon-selector {
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all var(--transition-fast);
+  color: var(--text-primary);
+  line-height: 50px;
+  padding-left: 10px;
+}
+
+.icon-selector:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 1px var(--brand-primary);
+}
+
+.icon-selector-arrow {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  opacity: 0.6;
+}

@@ -38,7 +38,7 @@ propertiesRouter.get('/:id', requireAuth, async (req: AuthenticatedRequest, res:
 
 // POST create property
 propertiesRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { name, address, description } = req.body;
+  const { name, address, description, icon } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Property name is required' });
     return;
@@ -46,7 +46,7 @@ propertiesRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: R
 
   const { data, error } = await supabase
     .from('properties')
-    .insert({ name, address, description, user_id: req.user!.id })
+    .insert({ name, address, description, icon, user_id: req.user!.id })
     .select()
     .single();
 
@@ -59,11 +59,11 @@ propertiesRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: R
 
 // PUT update property
 propertiesRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { name, address, description } = req.body;
+  const { name, address, description, icon } = req.body;
 
   const { data, error } = await supabase
     .from('properties')
-    .update({ name, address, description, updated_at: new Date().toISOString() })
+    .update({ name, address, description, icon, updated_at: new Date().toISOString() })
     .eq('id', req.params.id)
     .eq('user_id', req.user!.id)
     .select()

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-type Theme = 'dark' | 'light' | 'system';
+type Theme = 'dark' | 'light';
 
 interface SettingsContextType {
   theme: Theme;
@@ -13,7 +13,10 @@ const SettingsContext = createContext<SettingsContextType | null>(null);
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    return (localStorage.getItem('theme') as Theme) || 'system';
+    const saved = localStorage.getItem('theme') as Theme;
+    if (saved === 'light' || saved === 'dark') return saved;
+    // Default to system preference on first load
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
   
   const [showChatBubble, setShowChatBubble] = useState(() => {
@@ -21,24 +24,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    const applyTheme = (t: Theme) => {
-      let activeTheme = t;
-      if (t === 'system') {
-        activeTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      document.documentElement.setAttribute('data-theme', activeTheme);
-    };
-
-    applyTheme(theme);
+    document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => {
-      if (theme === 'system') applyTheme('system');
-    };
-    
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
   }, [theme]);
 
   const toggleChatBubble = () => {

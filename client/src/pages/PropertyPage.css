@@ -1,4 +1,13 @@
+.summary-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
 .summary-section {
+  flex: 1;
   background: linear-gradient(145deg, rgba(108, 63, 255, 0.15) 0%, var(--bg-card) 100%);
   border-color: rgba(108, 63, 255, 0.25);
   display: flex;
@@ -8,26 +17,23 @@
   text-align: center;
   gap: 2px;
   padding: 10px 20px;
-  margin-bottom: 4px;
-  position: relative; /* already added in JSX but redundant in CSS is fine */
+  margin-bottom: 0;
 }
 
 .chart-btn {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  width: 32px;
-  height: 32px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   border: 1px solid var(--border-subtle);
-  background: var(--bg-input);
+  background: var(--bg-card);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all var(--transition-fast);
-  z-index: 10;
-  font-size: 1.1rem;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
 }
 
 .chart-btn:hover {
@@ -187,3 +193,81 @@
   to { transform: translate(-50%, 0); opacity: 1; }
 }
 
+.bill-expansion-container {
+  background: var(--bg-modal);
+  border-radius: var(--radius-xl);
+  margin-top: 8px; /* space between pill and container */
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  animation: slideDownFade 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes slideDownFade {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.bill-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.bill-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.bill-action-btn.edit {
+  flex: 0 0 60px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.bill-action-btn.partial {
+  flex: 1;
+  background: #ff9800;
+  color: #fff;
+}
+.bill-action-btn.partial.active {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #ff9800;
+}
+
+.bill-action-btn.delete {
+  flex: 0 0 60px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ff4d4d;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.bill-action-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.bill-action-btn:active {
+  transform: translateY(0);
+}
+
+.partial-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-input);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  animation: fadeIn 0.3s ease;
+}

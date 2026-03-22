@@ -24,15 +24,14 @@ export const LoginPage: React.FC = () => {
         {/* Logo */}
         <div className="login-logo">
           <div className="login-logo-icon">
-            <PillIcon size={72} />
+            <PillIcon size={100} />
           </div>
           <h1 className="brand-text">BillsPills</h1>
-          <p className="login-subtitle">ניהול חכם של חשבונות ונכסים</p>
+          <p className="login-subtitle">התרופה לבלאגן בחשבונות שלך</p>
         </div>
 
         {/* Card */}
         <div className="login-card card">
-          <h2 className="login-card-title">כניסה לחשבון</h2>
 
           {error && (
             <div className="error-alert">

@@ -66,6 +66,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, showBack }) => 
     }
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'בוקר טוב';
+    if (hour >= 12 && hour < 18) return 'צהריים טובים';
+    if (hour >= 18 && hour < 22) return 'ערב טוב';
+    return 'לילה טוב';
+  };
+
+  const firstName = user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || '';
+
   const handleUserClick = () => {
     navigate('/settings');
   };
@@ -105,14 +115,38 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, showBack }) => 
           background: 'transparent',
           borderBottom: 'none',
           position: 'fixed',
-          width: '100%',
+          left: 0,
+          right: 0,
           top: 0,
           zIndex: 100,
           pointerEvents: 'none' // Allow scrolling underlying content when clicking empty parts of header
         }}
       >
-        {/* Visual Right Side (RTL Start) - User Profile or Back */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Visual Right Side (RTL Start) - Greeting & User Info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          {/* Settings Icon (Start of RTL) */}
+          <button 
+            onClick={handleUserClick}
+            style={{ 
+              background: 'rgba(255,255,255,0.05)', 
+              border: 'none', 
+              borderRadius: 'var(--radius-full)', 
+              width: '36px', 
+              height: '36px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'var(--brand-primary)',
+              fontSize: '1.2rem',
+              cursor: 'pointer',
+              pointerEvents: 'auto',
+              flexShrink: 0
+            }}
+            title="הגדרות"
+          >
+            ⚙️
+          </button>
+
           {showBack && (
             <button 
               onClick={() => navigate(-1)}
@@ -128,29 +162,35 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, showBack }) => 
                 color: 'var(--brand-primary)',
                 fontSize: '1.4rem',
                 cursor: 'pointer',
-                pointerEvents: 'auto'
+                pointerEvents: 'auto',
+                flexShrink: 0
               }}
               title="חזור"
             >
               ←
             </button>
           )}
+
           <div 
-            onClick={handleUserClick}
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              gap: '8px', 
-              cursor: 'pointer',
-              pointerEvents: 'auto'
+              gap: '4px', 
+              pointerEvents: 'auto',
+              color: 'var(--text-primary)',
+              minWidth: 0
             }}
           >
-            <div className="user-avatar" style={{ width: 36, height: 36, fontSize: '1rem' }}>
-              {(user?.full_name || user?.email || 'U')[0].toUpperCase()}
-            </div>
-            {user?.full_name && (
-              <span className="font-semibold text-sm drop-shadow-text">{user.full_name.split(' ')[0]}</span>
-            )}
+            <span 
+              className="drop-shadow-text truncate" 
+              style={{ 
+                fontSize: '0.9rem', 
+                fontWeight: 600,
+                maxWidth: '50vw'
+              }}
+            >
+              {getGreeting()}, {firstName}
+            </span>
           </div>
         </div>
 
@@ -163,7 +203,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, showBack }) => 
             padding: '8px'
           }}
         >
-          <PillIcon size={32} style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }} />
+          <PillIcon size={40} style={{ filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.3))' }} />
         </div>
       </header>
 

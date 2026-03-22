@@ -22,13 +22,13 @@ const BILL_TYPES = ['חשמל', 'מים', 'גז', 'ארנונה', 'ועד בית
 export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose, onAdded, allProperties = [] }) => {
   const [currentPropertyId, setCurrentPropertyId] = useState<string>(propertyId || '');
   const [step, setStep] = useState(1); // 1: Upload/Select, 2: Property Verify (if global), 3: Bill Form
-  
+
   const [billType, setBillType] = useState(editingBill?.bill_type || '');
   const [amount, setAmount] = useState(editingBill?.amount != null ? String(editingBill.amount) : '');
   const [paidAmount, setPaidAmount] = useState(editingBill?.paid_amount != null ? String(editingBill.paid_amount) : '');
   const [status, setStatus] = useState<'waiting' | 'paid' | 'partial'>(editingBill?.status || 'paid');
   const [extractedData, setExtractedData] = useState<Record<string, unknown>>(editingBill?.extracted_data || {});
-  
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     editingBill?.billing_period_start ? {
       from: new Date(editingBill.billing_period_start),
@@ -40,7 +40,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   const [ocrLoading, setOcrLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const [billTypeError, setBillTypeError] = useState(false);
   const [amountError, setAmountError] = useState(false);
   const [propertyError, setPropertyError] = useState(false);
@@ -97,11 +97,11 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const data = res.data;
-      
+
       setBillType(data.bill_type || '');
       setAmount(data.amount != null ? String(data.amount) : '');
       setExtractedData(data.extracted_data || {});
-      
+
       if (data.billing_period_start) {
         const start = new Date(data.billing_period_start);
         const end = data.billing_period_end ? new Date(data.billing_period_end) : undefined;
@@ -132,7 +132,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
   const handleSubmit = async () => {
     if (!currentPropertyId) { setPropertyError(true); return; }
-    
+
     let hasError = false;
     if (!billType) { setBillTypeError(true); hasError = true; }
     const totalAmount = parseFloat(amount);
@@ -195,7 +195,21 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {step > 1 && !editingBill && (
-              <button className="btn btn-ghost p-0" onClick={() => setStep(step - 1)} style={{ fontSize: '1.2rem' }}>→</button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => { if (propertyId && step === 3) setStep(1); else setStep(step - 1); }}
+                disabled={loading}
+                style={{
+                  fontSize: '0.85rem',
+                  padding: '6px 12px',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-md)'
+                }}
+              >
+                חזור
+              </button>
             )}
             <h2 className="modal-title">
               {editingBill ? 'עריכת חשבון' : 'הוספת חשבון'}
@@ -206,20 +220,27 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
         {error && <div className="error-alert mb-md">⚠️ {error}</div>}
 
+        {!editingBill && (
+          <div className="stepper mb-lg">
+            {Array.from({ length: propertyId ? 2 : 3 }, (_, i) => i + 1).map(s => {
+              const isActive = propertyId ? (step === 1 ? s === 1 : s === 2) : (step === s);
+              return <div key={s} className={`step-dot ${isActive ? 'active' : ''}`} />;
+            })}
+          </div>
+        )}
+
         {step === 1 ? (
           <div className="step-selection">
-            <div className="step-count">שלב 1 מתוך {propertyId ? 2 : 3}</div>
-            <div className="step-icon">📁</div>
-            <h3 className="text-center">סרוק חשבון או הזן ידנית</h3>
+            <div className="step-icon">🧾</div>
+            <h3 className="text-center">העלה חשבון או הזן ידנית</h3>
             <button className="btn btn-primary btn-full btn-lg" onClick={() => fileRef.current?.click()} disabled={ocrLoading}>
-              {ocrLoading ? 'מעבד קובץ...' : '📸 העלה חשבון (OCR/PDF)'}
+              {ocrLoading ? 'מעבד קובץ...' : 'העלה חשבון'}
             </button>
             <input type="file" ref={fileRef} style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleOcr(e.target.files[0])} />
-            <button className="btn btn-secondary btn-full" onClick={() => { if (!propertyId) setStep(2); else setStep(3); }}>✏️ הזן נתונים ידנית</button>
+            <button className="btn btn-secondary btn-full btn-lg" style={{ marginTop: '12px' }} onClick={() => { if (!propertyId) setStep(2); else setStep(3); }}>הזן נתונים ידנית</button>
           </div>
         ) : step === 2 ? (
           <div className="form-container">
-            <div className="step-count">שלב 2 מתוך 3</div>
             <h3 className="mb-md">שיוך לנכס</h3>
             <div className="floating-group has-value">
               <CustomSelect
@@ -230,13 +251,17 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                 error={propertyError}
               />
             </div>
-            <button className="btn btn-primary btn-full mt-lg" onClick={() => setStep(3)}>המשך לפרטי חשבון</button>
+            <button className="btn btn-primary btn-full mt-lg" onClick={() => {
+              if (!currentPropertyId) {
+                setPropertyError(true);
+                return;
+              }
+              setStep(3);
+            }}>המשך לפרטי חשבון</button>
           </div>
         ) : (
           <div className="form-container">
-            {!editingBill && propertyId && <div className="step-count">שלב 2 מתוך 2</div>}
-            {!editingBill && !propertyId && <div className="step-count">שלב 3 מתוך 3</div>}
-            
+
             <div className={`floating-group ${billType ? 'has-value' : ''}`}>
               <CustomSelect
                 value={billType}
@@ -246,32 +271,32 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                 error={billTypeError}
               />
             </div>
-            
+
             <div className={`floating-group has-value calendar-trigger`} onClick={() => setShowCalendar(true)}>
-               <div className="floating-input date-range-display">
-                 {formattedRange}
-               </div>
-               <label className="floating-label">תקופת חיוב (אופציונלי)</label>
-               <span className="calendar-icon">📅</span>
-               
-               {showCalendar && (
-                 <div className="calendar-overlay">
-                   <div className="calendar-popover" ref={calendarRef} onClick={e => e.stopPropagation()}>
-                     <DayPicker
-                       mode="range"
-                       selected={dateRange}
-                       onSelect={setDateRange}
-                       locale={he}
-                       dir="rtl"
-                       numberOfMonths={windowWidth > 768 ? 2 : 1}
-                       className="custom-rdp"
-                     />
-                     <div className="calendar-footer">
-                       <button className="btn btn-primary btn-sm" onClick={() => setShowCalendar(false)}>אישור</button>
-                     </div>
-                   </div>
-                 </div>
-               )}
+              <div className="floating-input date-range-display">
+                {formattedRange}
+              </div>
+              <label className="floating-label">תקופת חיוב (אופציונלי)</label>
+              <span className="calendar-icon">📅</span>
+
+              {showCalendar && (
+                <div className="calendar-overlay">
+                  <div className="calendar-popover" ref={calendarRef} onClick={e => e.stopPropagation()}>
+                    <DayPicker
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      locale={he}
+                      dir="rtl"
+                      numberOfMonths={windowWidth > 768 ? 2 : 1}
+                      className="custom-rdp"
+                    />
+                    <div className="calendar-footer">
+                      <button className="btn btn-primary btn-sm" onClick={() => setShowCalendar(false)}>אישור</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className={`floating-group ${amount ? 'has-value' : ''}`}>

@@ -1,18 +1,24 @@
-<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <g transform="rotate(45 50 50)">
-    <path d="M30 50 L30 30 A20 20 0 0 1 70 30 L70 50 Z" fill="url(#pillRedGrad)" />
-    <path d="M30 50 L30 70 A20 20 0 0 0 70 70 L70 50 Z" fill="url(#pillGreenGrad)" />
-    <path d="M42 22 A12 12 0 0 1 61 29" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.6" />
-    <path d="M42 26 A8 8 0 0 1 54 30" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.3" />
-  </g>
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="pillRedGrad" x1="30" y1="50" x2="70" y2="10" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#f43f5e" />
-      <stop offset="100%" stop-color="#e11d48" />
+    <linearGradient id="pillPastelRed" x1="30" y1="50" x2="70" y2="10" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FB7185" />
+      <stop offset="100%" stop-color="#F43F5E" />
     </linearGradient>
-    <linearGradient id="pillGreenGrad" x1="30" y1="50" x2="70" y2="90" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#4ade80" />
-      <stop offset="100%" stop-color="#16a34a" />
+    <linearGradient id="pillPastelGreen" x1="30" y1="50" x2="70" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#10B981" />
     </linearGradient>
+    <pattern id="ilsPattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+       <g transform="translate(2, 4) scale(0.6)">
+         <path d="M4.5 2C2.01472 2 0 4.01472 0 6.5V11H2V6.5C2 5.11929 3.11929 4 4.5 4H8V2H4.5ZM13.5 13C15.9853 13 18 10.9853 18 8.5V4H16V8.5C16 9.88071 14.8807 11 13.5 11H10V13H13.5Z" fill="rgba(255,255,255,0.3)" />
+       </g>
+    </pattern>
   </defs>
+
+  <g transform="rotate(45 50 50)">
+    <path d="M30 50 L30 30 A20 20 0 0 1 70 30 L70 50 Z" fill="url(#pillPastelRed)" />
+    <path d="M30 50 L30 70 A20 20 0 0 0 70 70 L70 50 Z" fill="url(#pillPastelGreen)" />
+    <path d="M30 30 A20 20 0 0 1 70 30 L70 70 A20 20 0 0 1 30 70 Z" fill="url(#ilsPattern)" pointer-events="none" />
+    <path d="M42 22 A12 12 0 0 1 61 29" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.5" />
+  </g>
 </svg>

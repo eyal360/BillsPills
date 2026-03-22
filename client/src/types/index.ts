@@ -10,6 +10,7 @@ export interface Property {
   id: string;
   user_id: string;
   name: string;
+  icon?: string;
   address?: string;
   description?: string;
   created_at: string;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { LoginPage } from './pages/LoginPage';
@@ -8,6 +8,7 @@ import { PropertyPage } from './pages/PropertyPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
 import { AdminUserView } from './pages/AdminUserView';
+import { PillLoader } from './components/PillLoader';
 import { ChatBubble } from './components/ChatBubble';
 
 // Protected Route wrapper
@@ -16,8 +17,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean 
 
   if (isLoading) {
     return (
-      <div className="loading-center" style={{ minHeight: '100dvh' }}>
-        <div className="spinner" />
+      <div className="loading-center" style={{ minHeight: '100dvh', background: 'var(--bg-main)' }}>
+        <PillLoader demo={true} />
+        <div className="text-sm text-muted" style={{ marginTop: '-20px', fontWeight: 500 }}>
+          מאמת גישה...
+        </div>
       </div>
     );
   }
@@ -29,6 +33,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean 
 
 const AppRoutes: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const isSettings = location.pathname === '/settings';
 
   return (
     <>
@@ -58,8 +64,8 @@ const AppRoutes: React.FC = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {/* Floating chat bubble — available on all authenticated pages */}
-      {user && <ChatBubble />}
+      {/* Floating chat bubble — available on all authenticated pages except settings */}
+      {user && !isSettings && <ChatBubble />}
     </>
   );
 };

@@ -7,10 +7,9 @@ import './BillCard.css';
 interface Props {
   bill: Bill;
   onUpdated: (bill: Bill) => void;
-  onDeleted: (id: string) => void;
   onUndoableAction?: (actionFn: () => Promise<void>, label: string) => void;
   onEdit?: (bill: Bill) => void;
-  onPartial?: (bill: Bill) => void;
+  onDeleted?: (id: string) => void;
   onPress?: () => void;
 }
 
@@ -50,23 +49,27 @@ const formatTsShort = (iso: string) => {
 };
 
 export const BillCard: React.FC<Props> = ({
-  bill, onUpdated, onDeleted, onUndoableAction, onEdit, onPartial, onPress
+  bill, onUpdated, onDeleted, onEdit, onUndoableAction, onPress
 }) => {
-  const [showMenu, setShowMenu] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSnapped, setIsSnapped] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const touchStart = useRef<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
-      // Also close snap if clicking card main
-      if (!menuRef.current?.contains(e.target as Node)) setIsSnapped(false);
+      // Close snap if clicking card main
+      if (!isSnapped) return;
+      if (!menuRef.current?.contains(e.target as Node)) {
+        setIsSnapped(false);
+        setSwipeOffset(0);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isSnapped]);
 
   const updateStatus = async (newStatus: 'waiting' | 'paid' | 'partial', newPaidAmount?: number) => {
     try {
@@ -97,14 +100,9 @@ export const BillCard: React.FC<Props> = ({
     setSwipeOffset(0);
   };
 
-  const handleDelete = async () => {
-    if (!confirm('למחוק חשבון זה?')) return;
-    try {
-      await api.delete(`/bills/${bill.id}`);
-      onDeleted(bill.id);
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDelete = () => {
+    setShowMenu(false);
+    onDeleted?.(bill.id);
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -121,7 +119,6 @@ export const BillCard: React.FC<Props> = ({
     if (diff > 0) {
       setSwipeOffset(Math.min(diff, 100));
     } else if (isSnapped && diff < 0) {
-      // Allow swiping back to close
       setSwipeOffset(Math.max(80 + diff, 0));
     }
   };
@@ -129,7 +126,7 @@ export const BillCard: React.FC<Props> = ({
   const onTouchEnd = () => {
     if (swipeOffset > 60) {
       setIsSnapped(true);
-      setSwipeOffset(80); // Snap point
+      setSwipeOffset(80);
     } else {
       setIsSnapped(false);
       setSwipeOffset(0);
@@ -158,7 +155,6 @@ export const BillCard: React.FC<Props> = ({
 
   return (
     <div className="bill-swipe-wrapper" style={{ zIndex: (showMenu || isSnapped) ? 1002 : 1 }}>
-      {/* Quick Pay Button - fixed background on the left */}
       <button
         className={`quick-pay-btn ${isSnapped ? 'visible' : ''}`}
         onClick={handleTogglePaid}
@@ -179,18 +175,16 @@ export const BillCard: React.FC<Props> = ({
           zIndex: 1
         }}
       >
-        <div className="bill-card-main" onClick={() => {
-          if (isSnapped) {
-            setIsSnapped(false);
-            setSwipeOffset(0);
-            return;
-          }
-          if (showMenu) {
-            setShowMenu(false);
-            return;
-          }
-          onPress?.();
-        }}>
+        <div 
+          className="bill-card-main" 
+          onClick={() => {
+            if (showMenu) {
+              setShowMenu(false);
+              return;
+            }
+            onPress?.();
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div className="bill-icon-pill">
               {getBillIcon(bill.bill_type)}
@@ -217,10 +211,6 @@ export const BillCard: React.FC<Props> = ({
           {showMenu && (
             <div className="kebab-dropdown" onClick={e => e.stopPropagation()}>
               <button className="kebab-option edit" onClick={() => { onEdit?.(bill); setShowMenu(false); }}>ערוך</button>
-              <button className="kebab-option pay" onClick={handleTogglePaid}>{bill.status === 'paid' ? 'בטל תשלום' : 'סמן כשולם'}</button>
-              {bill.status !== 'paid' && (
-                <button className="kebab-option partial" onClick={() => { onPartial?.(bill); setShowMenu(false); }}>שלם חלקית</button>
-              )}
               <button className="kebab-option delete" onClick={handleDelete}>מחק</button>
             </div>
           )}

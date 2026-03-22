@@ -15,6 +15,7 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
+  const [icon, setIcon] = useState('🏢');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [nameError, setNameError] = useState(false);
@@ -23,10 +24,12 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
   const addressRef = useRef<HTMLInputElement>(null);
   const descRef = useRef<HTMLInputElement>(null);
 
+  const PROPERTY_EMOJIS = ['🏠', '🏢', '🏗️', '🏬', '🏰', '🏡', '🏦', '🏪', '🏝️', '🏕️', '🏟️', '🏘️'];
+
   const handleNext = () => {
-    if (step === 1 && !name.trim()) { 
-      setNameError(true); 
-      return; 
+    if (step === 1 && !name.trim()) {
+      setNameError(true);
+      return;
     }
     setNameError(false);
     setError('');
@@ -37,7 +40,12 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/properties', { name: name.trim(), address: address.trim(), description: description.trim() });
+      const res = await api.post('/properties', {
+        name: name.trim(),
+        address: address.trim(),
+        description: description.trim(),
+        icon
+      });
       onAdded(res.data);
     } catch {
       setError('אירעה שגיאה בשמירת הנכס');
@@ -46,25 +54,39 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
     }
   };
 
-  const stepTitles = ['פרטי הנכס', 'אישור'];
 
   return (
     <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h2 className="modal-title">הוספת נכס חדש</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {step > 1 && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setStep(1)}
+                disabled={loading}
+                style={{
+                  fontSize: '0.85rem',
+                  padding: '6px 12px',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-md)'
+                }}
+              >
+                חזור
+              </button>
+            )}
+            <h2 className="modal-title">הוספת נכס חדש</h2>
+          </div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         {/* Stepper */}
         <div className="stepper">
           {[1, 2].map(s => (
-            <div key={s} className={`step-dot ${step >= s ? 'active' : ''}`} />
+            <div key={s} className={`step-dot ${step === s ? 'active' : ''}`} />
           ))}
-        </div>
-
-        <div className="step-label text-center text-sm text-muted mb-lg">
-          שלב {step} מתוך 2 — {stepTitles[step - 1]}
         </div>
 
         {error && <div className="error-alert mb-md">⚠️ {error}</div>}
@@ -72,35 +94,51 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
         {step === 1 && (
           <div className="step-content">
             <h3 className="text-center mb-lg">הזן את פרטי הנכס</h3>
-            
-            <div className={`floating-group ${name ? 'has-value' : ''}`}>
-              <input
-                id="prop-name"
-                ref={nameRef}
-                className={`floating-input ${nameError ? 'error' : ''}`}
-                placeholder=" "
-                value={name}
-                onChange={e => {
-                  setName(e.target.value);
-                  if (nameError) setNameError(false);
-                }}
-                onFocus={() => {
-                  if (nameError) setNameError(false);
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addressRef.current?.focus();
-                  }
-                }}
-                autoFocus
-              />
-              <label className="floating-label" htmlFor="prop-name">שם הנכס *</label>
-              {nameError && (
-                <div className="field-error">
-                  <span className="error-icon">⚠️</span> שם הנכס הוא שדה חובה
-                </div>
-              )}
+
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <div className="icon-selector-wrapper">
+                <select
+                  className="icon-selector"
+                  value={icon}
+                  onChange={e => setIcon(e.target.value)}
+                  aria-label="בחר אייקון"
+                >
+                  {PROPERTY_EMOJIS.map(emoji => (
+                    <option key={emoji} value={emoji}>{emoji}</option>
+                  ))}
+                </select>
+                <div className="icon-selector-arrow">▼</div>
+              </div>
+
+              <div className={`floating-group ${name ? 'has-value' : ''}`} style={{ flex: 1, marginTop: 0 }}>
+                <input
+                  id="prop-name"
+                  ref={nameRef}
+                  className={`floating-input ${nameError ? 'error' : ''}`}
+                  placeholder=" "
+                  value={name}
+                  onChange={e => {
+                    setName(e.target.value);
+                    if (nameError) setNameError(false);
+                  }}
+                  onFocus={() => {
+                    if (nameError) setNameError(false);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addressRef.current?.focus();
+                    }
+                  }}
+                  autoFocus
+                />
+                <label className="floating-label" htmlFor="prop-name">שם הנכס *</label>
+                {nameError && (
+                  <div className="field-error">
+                    <span className="error-icon">⚠️</span> שם הנכס הוא שדה חובה
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="floating-group">
@@ -147,6 +185,10 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
             <h3 className="text-center mb-lg">אישור פרטים</h3>
             <div className="confirm-card card">
               <div className="confirm-row">
+                <span className="text-muted text-sm">אייקון:</span>
+                <span style={{ fontSize: '1.5rem' }}>{icon}</span>
+              </div>
+              <div className="confirm-row">
                 <span className="text-muted text-sm">שם:</span>
                 <span className="font-semibold">{name}</span>
               </div>
@@ -167,15 +209,6 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
         )}
 
         <div className="modal-actions">
-          {step > 1 && (
-            <button
-              className="btn btn-secondary"
-              onClick={() => setStep(1)}
-              disabled={loading}
-            >
-              ‹ הקודם
-            </button>
-          )}
           {step < 2 ? (
             <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleNext}>
               הבא ›
@@ -187,7 +220,7 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
               onClick={handleSubmit}
               disabled={loading}
             >
-              {loading ? <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : '💾 שמור נכס'}
+              {loading ? <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : 'עדכן נכס'}
             </button>
           )}
         </div>

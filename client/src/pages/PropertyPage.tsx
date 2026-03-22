@@ -9,6 +9,7 @@ import { ExpenseModal } from '../components/ExpenseModal';
 import { CustomSelect } from '../components/CustomSelect';
 import { BillTimeline } from '../components/BillTimeline';
 import { MONTHS } from '../lib/constants';
+import { PieChart } from 'lucide-react';
 import './PropertyPage.css';
 
 interface UndoState {
@@ -28,9 +29,12 @@ export const PropertyPage: React.FC = () => {
   const [filterYear, setFilterYear] = useState<number | null>(null);
   const [filterMonth, setFilterMonth] = useState<number | null>(null);
   const [expandedBillId, setExpandedBillId] = useState<string | null>(null);
-  
+  const [showPartialInput, setShowPartialInput] = useState(false);
+  const [partialValue, setPartialValue] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<'paid' | 'partial' | 'waiting' | null>(null);
+
   // Undo Toast state
-  const [undoAction, setUndoAction] = useState<UndoState>({ visible: false, label: '', undoFn: async () => {} });
+  const [undoAction, setUndoAction] = useState<UndoState>({ visible: false, label: '', undoFn: async () => { } });
   const undoTimer = useRef<any>(null);
 
   useEffect(() => {
@@ -110,17 +114,91 @@ export const PropertyPage: React.FC = () => {
     setUndoAction(prev => ({ ...prev, visible: false }));
   };
 
-  const handlePartialPayment = (bill: Bill) => {
-    const amount = prompt('הכנס סכום ששולם חלקית:', String(bill.paid_amount || 0));
-    if (amount === null) return;
-    const partialAmount = parseFloat(amount);
-    if (isNaN(partialAmount)) return;
+  const handleStatusChange = async (bill: Bill, newStatus: 'paid' | 'partial' | 'waiting') => {
+    setSelectedStatus(newStatus);
+    if (newStatus !== 'partial') setShowPartialInput(false);
+
+    if (newStatus === 'paid') {
+      // Small timeout to let the UI reflect the change before confirm() blocks
+      setTimeout(async () => {
+        if (!window.confirm('האם אתה בטוח שברצונך לסמן את החשבון כשולם במלואו?')) {
+          setSelectedStatus(bill.status);
+          return;
+        }
+        
+        try {
+          const res = await api.put(`/bills/${bill.id}`, {
+            ...bill,
+            status: 'paid',
+            paid_amount: bill.amount || 0
+          });
+          
+          await api.post(`/properties/${id}/bills/${bill.id}/events`, {
+            title: 'החשבון שולם',
+            note: `סכום: ₪${bill.amount || 0}`
+          });
+
+          handleBillUpdated(res.data);
+          setShowPartialInput(false);
+        } catch (err) {
+          console.error(err);
+          setSelectedStatus(bill.status);
+        }
+      }, 50);
+    } else if (newStatus === 'partial') {
+      setPartialValue(String(bill.paid_amount || ''));
+      setShowPartialInput(true);
+    } else {
+      // waiting status - revert
+      try {
+        const res = await api.put(`/bills/${bill.id}`, {
+          ...bill,
+          status: 'waiting',
+          paid_amount: 0
+        });
+        
+        handleBillUpdated(res.data);
+        setShowPartialInput(false);
+      } catch (err) {
+        console.error(err);
+        setSelectedStatus(bill.status);
+      }
+    }
+  };
+
+  const handleUpdatePartial = async (bill: Bill) => {
+    const amountVal = parseFloat(partialValue);
+    if (isNaN(amountVal)) return;
     
-    api.put(`/bills/${bill.id}`, { 
-      ...bill, 
-      status: 'partial', 
-      paid_amount: partialAmount 
-    }).then(res => handleBillUpdated(res.data));
+    try {
+      const res = await api.put(`/bills/${bill.id}`, { 
+        ...bill, 
+        status: 'partial', 
+        paid_amount: amountVal 
+      });
+
+      // Add timeline event for partial payment
+      await api.post(`/properties/${id}/bills/${bill.id}/events`, {
+        title: 'שולם חלקית',
+        note: `שולם: ₪${amountVal} | נשאר: ₪${((bill.amount || 0) - amountVal).toFixed(1)}`
+      });
+
+      handleBillUpdated(res.data);
+      setShowPartialInput(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteBill = async (billId: string) => {
+    if (!window.confirm('האם אתה בטוח שברצונך למחוק את החשבון?')) return;
+    try {
+      await api.delete(`/bills/${billId}`);
+      setBills(prev => prev.filter(b => b.id !== billId));
+      setExpandedBillId(null);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const resetFilters = () => { setFilterYear(null); setFilterMonth(null); };
@@ -132,7 +210,16 @@ export const PropertyPage: React.FC = () => {
   })();
 
   const toggleExpand = (billId: string) => {
-    setExpandedBillId(prev => prev === billId ? null : billId);
+    if (expandedBillId === billId) {
+      setExpandedBillId(null);
+      setShowPartialInput(false);
+      setSelectedStatus(null);
+    } else {
+      setExpandedBillId(billId);
+      setShowPartialInput(false);
+      const b = bills.find(x => x.id === billId);
+      setSelectedStatus(b?.status || 'waiting');
+    }
   };
 
   if (loading) return (
@@ -147,36 +234,39 @@ export const PropertyPage: React.FC = () => {
   return (
     <Layout title={property?.name || 'נכס'}>
       <div className="page-content">
-        <div className="summary-section card relative">
-          <button className="chart-btn" onClick={() => setShowExpenseModal(true)}>📊</button>
-          <div className="summary-total">
-            ₪{totalSpent.toLocaleString('he-IL', { minimumFractionDigits: 1 })}
+        <div className="summary-wrapper">
+          <div className="summary-section card">
+            <div className="summary-total">
+              ₪{totalSpent.toLocaleString('he-IL', { minimumFractionDigits: 1 })}
+            </div>
+            <div className="summary-label">{summaryLabel}</div>
+            <div className="time-filter" dir="rtl">
+              <CustomSelect
+                value={filterYear != null ? String(filterYear) : ''}
+                onChange={val => { setFilterYear(val ? Number(val) : null); setFilterMonth(null); }}
+                options={availableYears.map(y => ({ value: String(y), label: String(y) }))}
+                placeholder="בחר שנה"
+              />
+              <CustomSelect
+                value={filterMonth != null ? String(filterMonth) : ''}
+                onChange={val => setFilterMonth(val ? Number(val) : null)}
+                options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
+                placeholder="בחר חודש"
+                disabled={!filterYear}
+              />
+              {(filterYear || filterMonth) && (
+                <button className="btn btn-ghost btn-sm filter-reset-btn" onClick={resetFilters}>✕</button>
+              )}
+            </div>
           </div>
-          <div className="summary-label">{summaryLabel}</div>
-          <div className="time-filter" dir="rtl">
-            <CustomSelect
-              value={filterYear != null ? String(filterYear) : ''}
-              onChange={val => { setFilterYear(val ? Number(val) : null); setFilterMonth(null); }}
-              options={availableYears.map(y => ({ value: String(y), label: String(y) }))}
-              placeholder="בחר שנה"
-            />
-            <CustomSelect
-              value={filterMonth != null ? String(filterMonth) : ''}
-              onChange={val => setFilterMonth(val ? Number(val) : null)}
-              options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
-              placeholder="בחר חודש"
-              disabled={!filterYear}
-            />
-            {(filterYear || filterMonth) && (
-              <button className="btn btn-ghost btn-sm filter-reset-btn" onClick={resetFilters}>✕</button>
-            )}
-          </div>
+          <button className="chart-btn" title="סטטיסטיקות" onClick={() => setShowExpenseModal(true)}>
+            <PieChart size={32} />
+          </button>
         </div>
 
         <div className="bills-section">
-          <div className="bills-header flex justify-between items-center mb-md">
-            <h3 className="font-bold">חשבונות</h3>
-            <button className="btn btn-primary btn-sm" onClick={() => { setEditingBill(undefined); setShowAddBill(true); }}>
+          <div className="bills-header flex justify-center mb-lg">
+            <button className="btn btn-primary btn-lg" style={{ minWidth: '200px' }} onClick={() => { setEditingBill(undefined); setShowAddBill(true); }}>
               + חשבון חדש
             </button>
           </div>
@@ -199,18 +289,56 @@ export const PropertyPage: React.FC = () => {
 
                 return (
                   <React.Fragment key={bill.id}>
+                    {index === 0 && isUnpaid && (
+                      <div className="bills-divider" style={{ marginBottom: '24px' }}>
+                        <span>נשאר לשלם</span>
+                      </div>
+                    )}
                     <div className={`bill-container-expandable ${isExpanded ? 'expanded' : ''}`}>
                       <BillCard
                         bill={bill}
                         onUpdated={handleBillUpdated}
-                        onDeleted={(id) => setBills(prev => prev.filter(b => b.id !== id))}
+                        onDeleted={(id) => handleDeleteBill(id)}
                         onUndoableAction={handleUndoableAction}
-                        onEdit={(b) => { setEditingBill(b); setShowAddBill(true); }}
-                        onPartial={handlePartialPayment}
+                        onEdit={(b) => { setEditingBill(b); setShowAddBill(true); setExpandedBillId(null); setShowPartialInput(false); }}
                         onPress={() => toggleExpand(bill.id)}
                       />
                       {isExpanded && (
-                        <BillTimeline billId={bill.id} propertyId={id!} />
+                        <div className="bill-expansion-container" onClick={e => e.stopPropagation()}>
+                          <div className="bill-actions-row">
+                            <div className="status-toggle-container" style={{ flex: 1, marginTop: 0 }}>
+                              {(['paid' as const, 'partial' as const, 'waiting' as const]).map(s => (
+                                <button
+                                  key={s}
+                                  className={`status-toggle-btn ${selectedStatus === s ? 'active' : ''} ${s}`}
+                                  onClick={() => handleStatusChange(bill, s)}
+                                >
+                                  {s === 'paid' ? 'שולם' : s === 'partial' ? 'שילמתי חלק' : 'לא שולם'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {showPartialInput && (
+                            <div className="partial-input-row">
+                              <div className={`floating-group ${partialValue ? 'has-value' : ''}`} style={{ flex: 1, margin: 0 }}>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  className="floating-input"
+                                  placeholder=" "
+                                  value={partialValue}
+                                  onChange={e => setPartialValue(e.target.value)}
+                                  dir="rtl"
+                                />
+                                <label className="floating-label">כמה שילמת עד כה? (₪)</label>
+                              </div>
+                              <button className="btn btn-primary btn-sm" onClick={() => handleUpdatePartial(bill)}>עדכן</button>
+                            </div>
+                          )}
+
+                          <BillTimeline billId={bill.id} propertyId={id!} />
+                        </div>
                       )}
                     </div>
                     {isUnpaid && isNextPaid && (
