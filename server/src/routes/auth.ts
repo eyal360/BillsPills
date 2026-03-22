@@ -56,11 +56,28 @@ authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { data: profile } = await supabase
+  let { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single();
+
+  // If profile doesn't exist (e.g. first Google login), create it
+  if (!profile && profileError?.code === 'PGRST116') {
+    const { data: newProfile, error: insertError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+        role: 'user',
+      })
+      .select('*')
+      .single();
+    
+    if (!insertError) {
+      profile = newProfile;
+    }
+  }
 
   res.json({ id: user.id, email: user.email, ...profile });
 });

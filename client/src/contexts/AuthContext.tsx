@@ -30,23 +30,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     import('../lib/supabase').then(({ supabase }) => {
+      // First check for session explicitly
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
           handleSession(session.access_token);
         } else {
-          if (mounted) setIsLoading(false);
-          if (mounted) setUser(null);
+          // If no session but hash exists, wait slightly for onAuthStateChange
+          if (window.location.hash.includes('access_token')) {
+             return; // Let onAuthStateChange handle it
+          }
+          if (mounted) {
+            setIsLoading(false);
+            setUser(null);
+          }
         }
       });
 
-      supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         if (session) {
           handleSession(session.access_token);
-        } else {
-          if (mounted) setUser(null);
-          localStorage.removeItem('access_token');
+        } else if (event === 'SIGNED_OUT') {
+          if (mounted) {
+            setUser(null);
+            setIsLoading(false);
+            localStorage.removeItem('access_token');
+          }
         }
       });
+
+      return () => subscription.unsubscribe();
     });
 
     return () => { mounted = false; };
