@@ -19,9 +19,9 @@ adminRouter.get('/users', requireAdmin, async (_req: AuthenticatedRequest, res: 
   // Get auth emails via admin API
   const { data: authUsers } = await supabase.auth.admin.listUsers();
   const emailMap: Record<string, string> = {};
-  authUsers?.users?.forEach(u => { emailMap[u.id] = u.email || ''; });
+  authUsers?.users?.forEach((u: any) => { emailMap[u.id] = u.email || ''; });
 
-  const users = profiles.map(p => ({ ...p, email: emailMap[p.id] || '' }));
+  const users = (profiles || []).map((p: any) => ({ ...p, email: emailMap[p.id] || '' }));
   res.json(users);
 });
 
@@ -76,8 +76,8 @@ adminRouter.get('/stats', requireAdmin, async (_req: AuthenticatedRequest, res: 
     supabase.from('bills').select('id, amount, status', { count: 'exact' }),
   ]);
 
-  const totalSpent = billsRes.data?.reduce((sum, b) => sum + (b.amount || 0), 0) || 0;
-  const waitingCount = billsRes.data?.filter(b => b.status === 'waiting').length || 0;
+  const totalSpent = billsRes.data?.reduce((sum: number, b: any) => sum + (b.amount || 0), 0) || 0;
+  const waitingCount = billsRes.data?.filter((b: any) => b.status === 'waiting').length || 0;
 
   res.json({
     totalUsers: usersRes.count || 0,

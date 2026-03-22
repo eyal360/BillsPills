@@ -52,19 +52,13 @@ authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
 
     const token = authHeader.split(' ')[1];
     if (!supabase) {
-      console.error('❌ Supabase client is not initialized — check environment variables!');
-      res.status(500).json({ error: 'Server initialization failed - Missing Supabase credentials' });
+      res.status(500).json({ error: 'Server configuration error' });
       return;
     }
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error || !user) {
-      console.error('❌ Supabase Token Verification failed:', error?.message);
-      res.status(401).json({ 
-        error: 'Invalid token', 
-        detail: error?.message, 
-        hasServerKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY 
-      });
+      res.status(401).json({ error: 'Invalid session' });
       return;
     }
 
@@ -91,22 +85,17 @@ authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
           profile = newProfile;
         }
       } catch (e) {
-        console.error('Failed to auto-create profile:', e);
+        // failed to create profile
       }
     }
 
     res.json({ 
       id: user.id, 
       email: user.email, 
-      ...(profile || {}) // Safety: spread empty object if profile is null
+      ...(profile || {}) 
     });
   } catch (err: any) {
-    console.error('🔥 CRITICAL ERROR in /auth/me:', err);
-    res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 

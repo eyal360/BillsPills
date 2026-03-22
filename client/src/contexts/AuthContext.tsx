@@ -19,21 +19,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let mounted = true;
 
     const handleSession = (access_token: string) => {
-      console.log('🗝️ HandleSession: Checking token... length:', access_token?.length);
       localStorage.setItem('access_token', access_token);
 
-      console.log('📡 Calling /api/auth/me...');
       api.get('/auth/me')
         .then(res => {
-          console.log('✅ AuthMe OK: User recognized as', res.data?.email);
           if (mounted) setUser(res.data);
         })
-        .catch((err) => {
-          console.error('❌ AuthMe Error occurred!');
-          console.error('Status:', err.response?.status);
-          console.error('Error Data:', err.response?.data);
-          console.error('Request URL:', err.config?.url);
-
+        .catch(() => {
           localStorage.removeItem('access_token');
           if (mounted) setUser(null);
         })

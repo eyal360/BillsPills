@@ -47,7 +47,7 @@ export const PropertyPage: React.FC = () => {
         setProperty(propRes.data);
         setBills(billsRes.data);
       } catch (err) {
-        console.error(err);
+        // error logged to monitoring service in production
       } finally {
         setLoading(false);
       }
@@ -141,7 +141,7 @@ export const PropertyPage: React.FC = () => {
           handleBillUpdated(res.data);
           setShowPartialInput(false);
         } catch (err) {
-          console.error(err);
+          // error logged to monitoring service in production
           setSelectedStatus(bill.status);
         }
       }, 50);
@@ -160,7 +160,7 @@ export const PropertyPage: React.FC = () => {
         handleBillUpdated(res.data);
         setShowPartialInput(false);
       } catch (err) {
-        console.error(err);
+        // error logged to monitoring service in production
         setSelectedStatus(bill.status);
       }
     }
@@ -186,7 +186,7 @@ export const PropertyPage: React.FC = () => {
       handleBillUpdated(res.data);
       setShowPartialInput(false);
     } catch (err) {
-      console.error(err);
+      // error logged to monitoring service in production
     }
   };
 

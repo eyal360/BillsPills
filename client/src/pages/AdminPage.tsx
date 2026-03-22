@@ -18,7 +18,7 @@ export const AdminPage: React.FC = () => {
     ]).then(([usersRes, statsRes]) => {
       setUsers(usersRes.data);
       setStats(statsRes.data);
-    }).catch(console.error).finally(() => setLoading(false));
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   if (loading) return (

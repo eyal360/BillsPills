@@ -34,7 +34,7 @@ export const BillTimeline: React.FC<Props> = ({ billId, propertyId }) => {
         const res = await api.get(`/properties/${propertyId}/bills/${billId}/events`);
         setEvents(res.data);
       } catch (err) {
-        console.error('Failed to fetch events:', err);
+        // failed to fetch events silently
       } finally {
         setLoading(false);
       }

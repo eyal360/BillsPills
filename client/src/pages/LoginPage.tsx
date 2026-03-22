@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { PillIcon } from '../components/PillIcon';
-import { GENERIC_ERROR_MESSAGE } from '../utils/errors';
+import { APP_MESSAGES } from '../lib/constants';
 import './LoginPage.css';
 
 export const LoginPage: React.FC = () => {
@@ -52,8 +52,8 @@ export const LoginPage: React.FC = () => {
                   }
                 });
               } catch (err: unknown) {
-                console.error('Login error:', err);
-                setError(GENERIC_ERROR_MESSAGE);
+                // error expected handling below
+                setError(APP_MESSAGES.GENERIC_ERROR);
                 setLoading(false);
               }
             }}

@@ -1,28 +1,25 @@
 # 🛡️ BillsPills
+### The Medicine for your Bills' Mess 💊
 
-**ניהול חכם וקל של חשבונות הנכסים שלך**
-
-BillsPills היא אפליקציית Web מתקדמת (PWA) המאפשרת לבעלי נכסים לנהל את כל הוצאות החשבונות שלהם במקום אחד. האפליקציה משלבת בינה מלאכותית (Gemini) לניתוח מהיר של מסמכי ה-OCR ומערכת ניהול מבוססת Supabase.
-
-## ✨ תכונות עיקריות
-- **Quick OCR**: העלאת חשבוניות (תמונה/PDF) וניתוח אוטומטי של סוג החשבון, סכום לתשלום ותקופת החיוב.
-- **התאמה אוטומטית לנכס**: המערכת מזהה אוטומטית לאיזה נכס שייך החשבון לפי הכתובת המופיעה בו.
-- **ציר זמן (Timeline)**: מעקב היסטורי אחרי כל שינוי או תשלום בכל חשבון.
-- **ניהול תשלומים חלקיים**: אפשרות לסמן תשלום חלקי או מלא ולראות יתרות.
-- **סטטיסטיקות וגרפים**: פילוח הוצאות לפי קטגוריות, שנים וחודשים.
-- **PWA Ready**: התקנה ישירה על הטלפון כמובגר אפליקציה טבעית (ללא צורך בחנות אפליקציות).
-
-## 🚀 טכנולוגיות
-- **Frontend**: React + Vite + TypeScript.
-- **Backend**: Node.js + Express (Serverless on Vercel).
-- **Database**: Supabase (PostgreSQL).
-- **AI Engine**: Google Gemini 1.5/2.0 Flash.
-
-## 🛠️ התקנה ופיתוח
-1. שכפל את המאגר (Clone).
-2. הרץ `npm run install:all`.
-3. הגדר משתני סביבה בקובץ `.env`.
-4. הרץ `npm run dev` לתחילת העבודה.
+**BillsPills** is a modern Progressive Web App (PWA) designed to simplify property expense management. It leverages AI-powered OCR to analyze bills, track payments, and organize financial data for multiple properties in one beautiful, streamlined interface.
 
 ---
-**נבנה עבור ניהול נכסים חכם ומהיר.**
+
+## ✨ Key Features
+- **🤖 AI-Powered OCR**: Upload images or PDFs of bills. Google Gemini automatically extracts the bill type, amount, dates, and account details.
+- **🏠 Smart Property Matching**: Automatic association of uploaded bills with your registered properties based on address detection.
+- **📈 Bill Timeline**: Trace the history of every expense, from initial upload to final payment, with automatic event logging.
+- **💸 Flexible Payment Tracking**: Support for partial payments, credit tracking, and clear "Waiting/Paid" status management.
+- **📊 Real-time Stats**: High-level dashboards showing total spending per property, category, and time period.
+- **📱 PWA Ready**: Installable on iOS and Android for a native app experience without an app store.
+
+---
+
+## 🚀 Technology Stack
+- **Frontend**: React (Vite) + TypeScript + TailwindCSS-inspired Vanilla CSS.
+- **Backend**: Node.js + Express (Serverless on Vercel).
+- **Database**: Supabase (PostgreSQL) + Row Level Security (RLS).
+- **AI Engine**: Google Gemini.
+
+---
+**Built for smart property owners who value their time.**

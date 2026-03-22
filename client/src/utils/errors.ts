@@ -1,1 +1,0 @@
-export const GENERIC_ERROR_MESSAGE = 'אירעה שגיאה. אנא נסה/י שוב מאוחר יותר..';

@@ -13,7 +13,7 @@ export const AdminUserView: React.FC = () => {
   useEffect(() => {
     api.get(`/admin/users/${userId}/properties`)
       .then(res => setProperties(res.data))
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [userId]);
 

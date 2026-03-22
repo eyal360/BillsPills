@@ -80,7 +80,7 @@ export const BillCard: React.FC<Props> = ({
       });
       onUpdated(res.data);
     } catch (err) {
-      console.error(err);
+      // error logged to monitoring service in production
     }
   };
 

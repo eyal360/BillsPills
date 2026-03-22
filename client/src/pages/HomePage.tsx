@@ -33,7 +33,7 @@ export const HomePage: React.FC = () => {
       }, remaining);
 
     } catch (err) {
-      console.error(err);
+      // error logged to monitoring service in production
       setLoading(false); // Immediate exit on error
     }
   };

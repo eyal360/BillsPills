@@ -1,3 +1,11 @@
+export const BILL_TYPES = ['חשמל', 'מים', 'גז', 'ארנונה', 'ועד בית', 'אינטרנט', 'טלוויזיה', 'ביטוח', 'אחר'];
+
+export const BILL_STATUSES = {
+  PAID: 'paid',
+  WAITING: 'waiting',
+  PARTIAL: 'partial'
+} as const;
+
 export const CATEGORY_COLORS: Record<string, string> = {
   'חשמל': '#FFB74D',   // Amber
   'מים': '#4facfe',    // Blue
@@ -20,3 +28,10 @@ export const MONTHS = [
   'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 
   'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'
 ];
+
+export const APP_MESSAGES = {
+  OCR_GENERIC_ERROR: 'שגיאה בעיבוד הקובץ — ניתן להזין נתונים ידנית',
+  SAVE_ERROR: 'אירעה שגיאה בשמירת החשבון',
+  LOGIN_ERROR: 'שגיאה בהתחברות. אנא בדוק את אמינות הפרטים שלך.',
+  GENERIC_ERROR: 'אירעה שגיאה. אנא נסה/י שוב מאוחר יותר..',
+};

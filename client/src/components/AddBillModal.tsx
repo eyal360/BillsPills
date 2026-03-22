@@ -7,6 +7,7 @@ import 'react-day-picker/dist/style.css';
 import type { Bill, OcrResult, Property } from '../types';
 import api from '../lib/api';
 import { CustomSelect } from './CustomSelect';
+import { BILL_TYPES, APP_MESSAGES, BILL_STATUSES } from '../lib/constants';
 import './AddBillModal.css';
 
 interface Props {
@@ -16,8 +17,6 @@ interface Props {
   onAdded: (bill: Bill) => void;
   allProperties?: Property[];
 }
-
-const BILL_TYPES = ['חשמל', 'מים', 'גז', 'ארנונה', 'ועד בית', 'אינטרנט', 'טלוויזיה', 'ביטוח', 'אחר'];
 
 export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose, onAdded, allProperties = [] }) => {
   const [currentPropertyId, setCurrentPropertyId] = useState<string>(propertyId || '');
@@ -131,8 +130,8 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         setStep(3);
       }
     } catch (err: any) {
-      console.error('OCR Error:', err);
-      const msg = err.response?.data?.error || 'שגיאה בעיבוד הקובץ — ניתן להזין נתונים ידנית';
+      // ocr error handled by UI state
+      const msg = err.response?.data?.error || APP_MESSAGES.OCR_GENERIC_ERROR;
       setError(msg);
       if (!propertyId) setStep(2); else setStep(3);
     } finally {
@@ -158,10 +157,10 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
     if (status === 'partial') {
       const partialVal = parseFloat(paidAmount) || 0;
       if (partialVal >= totalAmount) {
-        finalStatus = 'paid';
+        finalStatus = BILL_STATUSES.PAID;
         finalPaidAmount = totalAmount;
       } else if (partialVal <= 0) {
-        finalStatus = 'waiting';
+        finalStatus = BILL_STATUSES.WAITING;
         finalPaidAmount = null;
       } else {
         finalPaidAmount = partialVal;
@@ -189,7 +188,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       }
       onAdded(res.data);
     } catch {
-      setError('אירעה שגיאה בשמירת החשבון');
+      setError(APP_MESSAGES.SAVE_ERROR);
     } finally {
       setLoading(false);
     }
@@ -326,7 +325,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
             </div>
 
             <div className="status-toggle-container">
-              {(['paid' as const, 'partial' as const, 'waiting' as const]).map(s => (
+              {([BILL_STATUSES.PAID, BILL_STATUSES.PARTIAL, BILL_STATUSES.WAITING]).map(s => (
                 <button
                   key={s}
                   className={`status-toggle-btn ${status === s ? 'active' : ''} ${s}`}
