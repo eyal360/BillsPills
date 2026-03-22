@@ -43,49 +43,66 @@ authRouter.post('/logout', async (_req: Request, res: Response): Promise<void> =
 
 // Get current user
 authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  
-  if (error || !user) {
-    console.error('❌ Supabase Token Verification failed:', error?.message);
-    res.status(401).json({ 
-      error: 'Invalid token', 
-      detail: error?.message, 
-      hasServerKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY 
-    });
-    return;
-  }
-
-  let { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  // If profile doesn't exist (e.g. first Google login), create it
-  if (!profile && profileError?.code === 'PGRST116') {
-    const { data: newProfile, error: insertError } = await supabase
-      .from('profiles')
-      .insert({
-        id: user.id,
-        full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-        role: 'user',
-      })
-      .select('*')
-      .single();
-    
-    if (!insertError) {
-      profile = newProfile;
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
-  }
 
-  res.json({ id: user.id, email: user.email, ...profile });
+    const token = authHeader.split(' ')[1];
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.error('❌ Supabase Token Verification failed:', error?.message);
+      res.status(401).json({ 
+        error: 'Invalid token', 
+        detail: error?.message, 
+        hasServerKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY 
+      });
+      return;
+    }
+
+    let { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    // If profile doesn't exist (e.g. first Google login), create it
+    if (!profile && profileError?.code === 'PGRST116') {
+      try {
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+            role: 'user',
+          })
+          .select('*')
+          .single();
+        
+        if (!insertError) {
+          profile = newProfile;
+        }
+      } catch (e) {
+        console.error('Failed to auto-create profile:', e);
+      }
+    }
+
+    res.json({ 
+      id: user.id, 
+      email: user.email, 
+      ...(profile || {}) // Safety: spread empty object if profile is null
+    });
+  } catch (err: any) {
+    console.error('🔥 CRITICAL ERROR in /auth/me:', err);
+    res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+  }
 });
 
 // Register (for demo/admin setup)
