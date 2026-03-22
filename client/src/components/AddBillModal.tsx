@@ -116,7 +116,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         setRecognizedPropertyName('');
       } else {
         setCurrentPropertyId('');
-        const propName = data.extracted_data?.property_name || data.extracted_data?.name;
+        const propName = data.recognized_property_name || data.extracted_data?.recognized_property_name || data.extracted_data?.property_name || data.extracted_data?.name;
         if (propName) {
           setRecognizedPropertyName(String(propName));
         } else {

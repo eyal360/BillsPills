@@ -53,6 +53,7 @@ export interface OcrResult {
   billing_period_start: string | null;
   billing_period_end: string | null;
   matched_property_id: string | null;
+  recognized_property_name?: string | null;
   extracted_data: Record<string, unknown>;
   fields: string[];
 }

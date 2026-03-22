@@ -22,6 +22,7 @@ If you cannot find a value for a specific field in the document, return null for
 {{properties_context}}
 If the list of properties above exists, compare the addresses and names on the bill with each property in the list.
 - **matched_property_id**: If you find a high-confidence match (using address or name similarity), return its numeric/UUID ID. If no confident match is found, return null.
+- **recognized_property_name**: If no ID was matched, still extract the name of the property or the address found on the bill that represents the property location.
 
 ## Format Constraint
 You MUST output your response **exclusively** as a valid, parsable JSON object wrapping the keys. Do not use Markdown blocks like ```json ... ```. Output ONLY the raw JSON string.

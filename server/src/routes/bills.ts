@@ -188,6 +188,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
     const billingPeriodStart = extracted.billing_period_start || extracted.extracted_data?.billing_period_start || null;
     const billingPeriodEnd = extracted.billing_period_end || extracted.extracted_data?.billing_period_end || null;
     const propertyId = extracted.matched_property_id || extracted.extracted_data?.matched_property_id || null;
+    const recognizedPropertyName = extracted.recognized_property_name || extracted.extracted_data?.recognized_property_name || extracted.extracted_data?.property_name || extracted.extracted_data?.address || null;
 
     logger.info(`OCR Success: Type=${billType}, Amount=${amount}, Period=${billingPeriodStart} to ${billingPeriodEnd}, PropMatch=${propertyId}`);
 
@@ -197,6 +198,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       billing_period_start: billingPeriodStart,
       billing_period_end: billingPeriodEnd,
       matched_property_id: propertyId,
+      recognized_property_name: recognizedPropertyName,
       extracted_data: extracted.extracted_data || extracted,
       fields: EXTRACTION_FIELDS,
     });
