@@ -28,6 +28,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   const [paidAmount, setPaidAmount] = useState(editingBill?.paid_amount != null ? String(editingBill.paid_amount) : '');
   const [status, setStatus] = useState<'waiting' | 'paid' | 'partial'>(editingBill?.status || 'paid');
   const [extractedData, setExtractedData] = useState<Record<string, unknown>>(editingBill?.extracted_data || {});
+  const [recognizedPropertyName, setRecognizedPropertyName] = useState('');
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     editingBill?.billing_period_start ? {
@@ -112,6 +113,15 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
       if (data.matched_property_id) {
         setCurrentPropertyId(data.matched_property_id);
+        setRecognizedPropertyName('');
+      } else {
+        setCurrentPropertyId('');
+        const propName = data.extracted_data?.property_name || data.extracted_data?.name;
+        if (propName) {
+          setRecognizedPropertyName(String(propName));
+        } else {
+          setRecognizedPropertyName('');
+        }
       }
 
       // If global (no propertyId passed), go to step 2 to confirm property
@@ -236,7 +246,13 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
             <button className="btn btn-primary btn-full btn-lg" onClick={() => fileRef.current?.click()} disabled={ocrLoading}>
               {ocrLoading ? 'מעבד קובץ...' : 'העלה חשבון'}
             </button>
-            <input type="file" ref={fileRef} style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleOcr(e.target.files[0])} />
+            <input 
+              type="file" 
+              ref={fileRef} 
+              style={{ display: 'none' }} 
+              accept="image/*,application/pdf"
+              onChange={e => e.target.files?.[0] && handleOcr(e.target.files[0])} 
+            />
             <button className="btn btn-secondary btn-full btn-lg" style={{ marginTop: '12px' }} onClick={() => { if (!propertyId) setStep(2); else setStep(3); }}>הזן נתונים ידנית</button>
           </div>
         ) : step === 2 ? (
@@ -251,6 +267,11 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                 error={propertyError}
               />
             </div>
+            {recognizedPropertyName && !currentPropertyId && (
+              <div className="error-text mt-xs" style={{ color: '#ff4d4d', fontSize: '0.85rem', fontWeight: 600 }}>
+                ⚠️ זוהה נכס "{recognizedPropertyName}" אבל הוא לא קיים
+              </div>
+            )}
             <button className="btn btn-primary btn-full mt-lg" onClick={() => {
               if (!currentPropertyId) {
                 setPropertyError(true);
