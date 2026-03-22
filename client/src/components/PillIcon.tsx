@@ -52,6 +52,10 @@ export const PillIcon: React.FC<Props> = ({ size = 48, className = '', style = {
       <path d="M30 30 A20 20 0 0 1 70 30 L70 70 A20 20 0 0 1 30 70 Z" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" pointerEvents="none" />
       {/* Outer rim shadow on the bottom right (unrotated perspective) */}
       <path d="M68 50 L68 70 A18 18 0 0 1 32 70" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" strokeLinecap="round" fill="none" pointerEvents="none" />
+
+      {/* Classic pill glossy shine */}
+      <path d="M36 28 L36 58" stroke="rgba(255,255,255,0.3)" strokeWidth="3.5" strokeLinecap="round" pointerEvents="none" />
+      <path d="M36 63.5 L36 66" stroke="rgba(255,255,255,0.3)" strokeWidth="3.5" strokeLinecap="round" pointerEvents="none" />
     </g>
   </svg>
 );
