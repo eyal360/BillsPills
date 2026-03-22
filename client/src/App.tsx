@@ -8,7 +8,6 @@ import { PropertyPage } from './pages/PropertyPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
 import { AdminUserView } from './pages/AdminUserView';
-import { PillLoader } from './components/PillLoader';
 import { ChatBubble } from './components/ChatBubble';
 
 // Protected Route wrapper
@@ -17,11 +16,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean 
 
   if (isLoading) {
     return (
-      <div className="loading-center" style={{ minHeight: '100dvh', background: 'var(--bg-main)' }}>
-        <PillLoader demo={true} />
-        <div className="text-sm text-muted" style={{ marginTop: '-20px', fontWeight: 500 }}>
-          מאמת גישה...
-        </div>
+      <div className="loading-center" style={{ 
+        minHeight: '100dvh', 
+        background: 'var(--bg-main)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div className="spinner" style={{ width: '30px', height: '30px' }} />
       </div>
     );
   }
