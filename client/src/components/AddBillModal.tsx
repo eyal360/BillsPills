@@ -8,6 +8,7 @@ import type { Bill, OcrResult, Property } from '../types';
 import api from '../lib/api';
 import { CustomSelect } from './CustomSelect';
 import { BILL_TYPES, APP_MESSAGES, BILL_STATUSES } from '../lib/constants';
+import { PillLoader } from './PillLoader';
 import './AddBillModal.css';
 
 interface Props {
@@ -240,8 +241,14 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
         {step === 1 ? (
           <div className="step-selection">
-            <div className="step-icon">🧾</div>
-            <h3 className="text-center">העלה חשבון או הזן ידנית</h3>
+            <div className="step-icon" style={{ height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+              {ocrLoading ? (
+                <PillLoader demo={true} hideLabel={true} />
+              ) : (
+                <span style={{ fontSize: '4.5rem' }}>🧾</span>
+              )}
+            </div>
+            <h3 className="text-center">{ocrLoading ? 'מנתח את החשבון...' : 'העלה חשבון או הזן ידנית'}</h3>
             <button className="btn btn-primary btn-full btn-lg" onClick={() => fileRef.current?.click()} disabled={ocrLoading}>
               {ocrLoading ? 'מעבד קובץ...' : 'העלה חשבון'}
             </button>

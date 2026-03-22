@@ -6,6 +6,7 @@ interface PillLoaderProps {
   demo?: boolean;
   isCompleting?: boolean;
   onComplete?: () => void;
+  hideLabel?: boolean;
 }
 
 const ShekelPath = "M4.5 2C2.01472 2 0 4.01472 0 6.5V11H2V6.5C2 5.11929 3.11929 4 4.5 4H8V2H4.5ZM13.5 13C15.9853 13 18 10.9853 18 8.5V4H16V8.5C16 9.88071 14.8807 11 13.5 11H10V13H13.5Z";
@@ -14,7 +15,8 @@ export const PillLoader: React.FC<PillLoaderProps> = ({
   loadingProgress = 0,
   demo = false,
   isCompleting = false,
-  onComplete
+  onComplete,
+  hideLabel = false
 }) => {
   const [progress, setProgress] = useState(loadingProgress);
 
@@ -136,7 +138,7 @@ export const PillLoader: React.FC<PillLoaderProps> = ({
         </g>
       </svg>
 
-      {demo && (
+      {demo && !hideLabel && (
         <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600 }}>
           התרופה לבלאגן בחשבונות שלך
         </div>
