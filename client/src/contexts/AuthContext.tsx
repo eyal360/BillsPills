@@ -19,14 +19,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let mounted = true;
 
     const handleSession = (access_token: string) => {
+      console.log('🗝️ HandleSession: Setting access_token in localStorage');
       localStorage.setItem('access_token', access_token);
+      
       api.get('/auth/me')
-        .then(res => { if (mounted) setUser(res.data); })
-        .catch(() => {
+        .then(res => { 
+          console.log('✅ AuthMe Success:', res.data);
+          if (mounted) setUser(res.data); 
+        })
+        .catch((err) => {
+          console.error('❌ AuthMe Error:', err.response?.status, err.response?.data || err.message);
           localStorage.removeItem('access_token');
           if (mounted) setUser(null);
         })
-        .finally(() => { if (mounted) setIsLoading(false); });
+        .finally(() => { 
+          if (mounted) setIsLoading(false); 
+        });
     };
 
     import('../lib/supabase').then(({ supabase }) => {
