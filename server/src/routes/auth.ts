@@ -51,6 +51,11 @@ authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
     }
 
     const token = authHeader.split(' ')[1];
+    if (!supabase) {
+      console.error('❌ Supabase client is not initialized — check environment variables!');
+      res.status(500).json({ error: 'Server initialization failed - Missing Supabase credentials' });
+      return;
+    }
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error || !user) {

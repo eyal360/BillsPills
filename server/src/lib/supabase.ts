@@ -9,16 +9,16 @@ const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
-  logger.error('Missing Supabase environment variables');
+  logger.error('⚠️ CRITICAL: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
 }
 
 // Service role client — bypasses RLS for server-side operations
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+// Use a proxy or dummy client if keys are missing to avoid startup crash
+export const supabase = (supabaseUrl && supabaseKey) 
+  ? createClient(supabaseUrl, supabaseKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  : null as any; // We check for null in the routes
 
 // Create a user-scoped client for RLS-protected queries
 export const createUserClient = (accessToken: string) => {
