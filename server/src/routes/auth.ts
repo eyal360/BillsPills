@@ -51,8 +51,14 @@ authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
 
   const token = authHeader.split(' ')[1];
   const { data: { user }, error } = await supabase.auth.getUser(token);
+  
   if (error || !user) {
-    res.status(401).json({ error: 'Invalid token' });
+    console.error('❌ Supabase Token Verification failed:', error?.message);
+    res.status(401).json({ 
+      error: 'Invalid token', 
+      detail: error?.message, 
+      hasServerKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY 
+    });
     return;
   }
 

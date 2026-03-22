@@ -19,21 +19,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let mounted = true;
 
     const handleSession = (access_token: string) => {
-      console.log('🗝️ HandleSession: Setting access_token in localStorage');
+      console.log('🗝️ HandleSession: Checking token... length:', access_token?.length);
       localStorage.setItem('access_token', access_token);
-      
+
+      console.log('📡 Calling /api/auth/me...');
       api.get('/auth/me')
-        .then(res => { 
-          console.log('✅ AuthMe Success:', res.data);
-          if (mounted) setUser(res.data); 
+        .then(res => {
+          console.log('✅ AuthMe OK: User recognized as', res.data?.email);
+          if (mounted) setUser(res.data);
         })
         .catch((err) => {
-          console.error('❌ AuthMe Error:', err.response?.status, err.response?.data || err.message);
+          console.error('❌ AuthMe Error occurred!');
+          console.error('Status:', err.response?.status);
+          console.error('Error Data:', err.response?.data);
+          console.error('Request URL:', err.config?.url);
+
           localStorage.removeItem('access_token');
           if (mounted) setUser(null);
         })
-        .finally(() => { 
-          if (mounted) setIsLoading(false); 
+        .finally(() => {
+          if (mounted) setIsLoading(false);
         });
     };
 
@@ -45,7 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           // If no session but hash exists, wait slightly for onAuthStateChange
           if (window.location.hash.includes('access_token')) {
-             return; // Let onAuthStateChange handle it
+            return; // Let onAuthStateChange handle it
           }
           if (mounted) {
             setIsLoading(false);
@@ -74,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     // Attempt backend logout, but also clean up locally and in supabase client
-    api.post('/auth/logout').catch(() => {});
+    api.post('/auth/logout').catch(() => { });
     import('../lib/supabase').then(({ supabase }) => supabase.auth.signOut());
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
