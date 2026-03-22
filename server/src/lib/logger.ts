@@ -2,10 +2,8 @@ import winston from 'winston';
 import fs from 'fs';
 import path from 'path';
 
-const logDir = path.join(process.cwd(), 'logs');
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir);
-}
+// On Vercel (Production), we only log to Console as the filesystem is read-only
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 
 const customFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -22,24 +20,38 @@ const consoleFormat = winston.format.combine(
   })
 );
 
+const transports: winston.transport[] = [
+  new winston.transports.Console({
+    format: isProduction ? customFormat : consoleFormat,
+  }),
+];
+
+// Only add file logging if NOT on Vercel/Production 
+// In a real local environment, this will still work
+if (!isProduction) {
+  const logDir = path.join(process.cwd(), 'logs');
+  try {
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir);
+    }
+    transports.push(
+      new winston.transports.File({ 
+        filename: path.join(logDir, 'error.log'), 
+        level: 'error',
+        format: winston.format.combine(winston.format.uncolorize(), customFormat)
+      }),
+      new winston.transports.File({ 
+        filename: path.join(logDir, 'combined.log'),
+        format: winston.format.combine(winston.format.uncolorize(), customFormat)
+      })
+    );
+  } catch (e) {
+    console.warn('Logging to file disabled (likely read-only filesystem)');
+  }
+}
+
 export const logger = winston.createLogger({
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  level: isProduction ? 'info' : 'debug',
   format: customFormat,
-  transports: [
-    // Realtime colorful output for development
-    new winston.transports.Console({
-      format: consoleFormat,
-    }),
-    // All errors get saved here
-    new winston.transports.File({ 
-      filename: path.join(logDir, 'error.log'), 
-      level: 'error',
-      format: winston.format.combine(winston.format.uncolorize(), customFormat)
-    }),
-    // Everything gets saved here
-    new winston.transports.File({ 
-      filename: path.join(logDir, 'combined.log'),
-      format: winston.format.combine(winston.format.uncolorize(), customFormat)
-    }),
-  ],
+  transports,
 });
