@@ -1,9 +1,54 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { DayPicker } from 'react-day-picker';
-import type { DateRange } from 'react-day-picker';
-import { he } from 'date-fns/locale';
 import { format } from 'date-fns';
-import 'react-day-picker/dist/style.css';
+import { DatePicker, ConfigProvider } from 'antd-mobile';
+
+const heIL = {
+  locale: 'he',
+  common: {
+    confirm: 'אישור',
+    cancel: 'ביטול',
+    loading: 'טוען',
+    close: 'סגור'
+  },
+  DatePicker: {
+    tillNow: 'עכשיו'
+  },
+  Mask: {
+    name: 'מסכה'
+  },
+  Modal: {
+    ok: 'אישור'
+  },
+  Dialog: {
+    ok: 'אישור'
+  },
+  Calendar: {
+    title: 'בחירת תאריך',
+    confirm: 'אישור',
+    start: 'התחלה',
+    end: 'סיום',
+    startAndEnd: 'התחלה/סיום',
+    today: 'היום',
+    markItems: ['ב', 'ג', 'ד', 'ה', 'ו', 'ש', 'א'],
+    yearAndMonth: '${year} ${month}'
+  },
+  Input: {
+    clear: 'נקה'
+  },
+  SearchBar: {
+    name: 'חיפוש'
+  },
+  Stepper: {
+    decrease: 'הפחת',
+    increase: 'הגדל'
+  },
+  Switch: {
+    name: 'מתג'
+  },
+  Selector: {
+    name: 'בחירה'
+  }
+} as any;
 import type { Bill, OcrResult, Property } from '../types';
 import api from '../lib/api';
 import { CustomSelect } from './CustomSelect';
@@ -30,13 +75,11 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   const [extractedData, setExtractedData] = useState<Record<string, unknown>>(editingBill?.extracted_data || {});
   const [recognizedPropertyName, setRecognizedPropertyName] = useState('');
 
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(
-    editingBill?.billing_period_start ? {
-      from: new Date(editingBill.billing_period_start),
-      to: editingBill.billing_period_end ? new Date(editingBill.billing_period_end) : undefined
-    } : undefined
-  );
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [startDate, setStartDate] = useState<Date | null>(editingBill?.billing_period_start ? new Date(editingBill.billing_period_start) : null);
+  const [endDate, setEndDate] = useState<Date | null>(editingBill?.billing_period_end ? new Date(editingBill.billing_period_end) : null);
+
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   const [ocrLoading, setOcrLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,13 +91,10 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
   const fileRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
-  const calendarRef = useRef<HTMLDivElement>(null);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    // Handle OCR initialization if file is passed (e.g. from camera/gallery)
+    // but here we usually wait for user interaction
   }, []);
 
   useEffect(() => {
@@ -65,24 +105,23 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setStatus(editingBill.status);
       setExtractedData(editingBill.extracted_data || {});
       if (editingBill.billing_period_start) {
-        setDateRange({
-          from: new Date(editingBill.billing_period_start),
-          to: editingBill.billing_period_end ? new Date(editingBill.billing_period_end) : undefined
-        });
+        setStartDate(new Date(editingBill.billing_period_start));
+        setEndDate(editingBill.billing_period_end ? new Date(editingBill.billing_period_end) : null);
       }
       setStep(3);
     }
   }, [editingBill]);
 
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
-        setShowCalendar(false);
-      }
-    };
-    if (showCalendar) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showCalendar]);
+  // Date helpers
+  const handleStartDateSelect = (val: Date) => {
+    setStartDate(val);
+    setShowStartPicker(false);
+  };
+
+  const handleEndDateSelect = (val: Date) => {
+    setEndDate(val);
+    setShowEndPicker(false);
+  };
 
   const handleOcr = async (file: File) => {
     setOcrLoading(true);
@@ -107,7 +146,8 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         const start = new Date(data.billing_period_start);
         const end = data.billing_period_end ? new Date(data.billing_period_end) : undefined;
         if (!isNaN(start.getTime())) {
-          setDateRange({ from: start, to: (end && !isNaN(end.getTime())) ? end : undefined });
+          setStartDate(start);
+          setEndDate((end && !isNaN(end.getTime())) ? end : null);
         }
       }
 
@@ -170,6 +210,29 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       finalPaidAmount = totalAmount;
     }
 
+    if (editingBill) {
+      const oldAmount = editingBill.amount || 0;
+      const currentPaid = editingBill.paid_amount || 0;
+      
+      if (totalAmount !== oldAmount) {
+        if (editingBill.status === 'paid' && totalAmount > oldAmount) {
+          finalStatus = 'partial';
+          finalPaidAmount = oldAmount;
+        } else if (editingBill.status === 'partial') {
+          if (currentPaid >= totalAmount) {
+            finalStatus = BILL_STATUSES.PAID;
+            finalPaidAmount = totalAmount;
+          } else {
+            finalStatus = 'partial';
+            finalPaidAmount = currentPaid;
+          }
+        }
+      } else {
+        finalStatus = editingBill.status;
+        finalPaidAmount = editingBill.paid_amount || 0;
+      }
+    }
+
     try {
       const payload = {
         bill_type: billType,
@@ -177,27 +240,35 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         status: finalStatus,
         paid_amount: finalPaidAmount,
         extracted_data: extractedData,
-        billing_period_start: dateRange?.from?.toISOString(),
-        billing_period_end: dateRange?.to?.toISOString(),
+        billing_period_start: startDate?.toISOString(),
+        billing_period_end: endDate?.toISOString(),
       };
 
       let res;
       if (editingBill) {
         res = await api.put<Bill>(`/bills/${editingBill.id}`, payload);
+        
+        // Add generic event if total amount changed
+        if (editingBill.amount !== totalAmount) {
+          await api.post(`/properties/${currentPropertyId}/bills/${editingBill.id}/events`, {
+            title: 'סכום החשבון עודכן',
+            note: `מ-₪${editingBill.amount || 0} ל-₪${totalAmount}`
+          });
+        }
       } else {
         res = await api.post<Bill>(`/properties/${currentPropertyId}/bills`, payload);
       }
       onAdded(res.data);
-    } catch {
-      setError(APP_MESSAGES.SAVE_ERROR);
+    } catch (err: any) {
+      console.error('Save bill error:', err);
+      setError(err.response?.data?.error || 'אירעה שגיאה בשמירת החשבון');
     } finally {
       setLoading(false);
     }
   };
 
-  const formattedRange = dateRange?.from ? (
-    dateRange.to ? `${format(dateRange.from, 'dd/MM/yy')} - ${format(dateRange.to, 'dd/MM/yy')}` : format(dateRange.from, 'dd/MM/yy')
-  ) : 'בחר תקופת חיוב';
+  const startDateDisplay = startDate ? format(startDate, 'dd/MM/yy') : 'תאריך התחלה';
+  const endDateDisplay = endDate ? format(endDate, 'dd/MM/yy') : 'תאריך סיום';
 
   return (
     <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -252,12 +323,12 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
             <button className="btn btn-primary btn-full btn-lg" onClick={() => fileRef.current?.click()} disabled={ocrLoading}>
               {ocrLoading ? 'מעבד קובץ...' : 'העלה חשבון'}
             </button>
-            <input 
-              type="file" 
-              ref={fileRef} 
-              style={{ display: 'none' }} 
+            <input
+              type="file"
+              ref={fileRef}
+              style={{ display: 'none' }}
               accept="image/*,application/pdf"
-              onChange={e => e.target.files?.[0] && handleOcr(e.target.files[0])} 
+              onChange={e => e.target.files?.[0] && handleOcr(e.target.files[0])}
             />
             <button className="btn btn-secondary btn-full btn-lg" style={{ marginTop: '12px' }} onClick={() => { if (!propertyId) setStep(2); else setStep(3); }}>הזן נתונים ידנית</button>
           </div>
@@ -299,55 +370,62 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
               />
             </div>
 
-            <div className={`floating-group has-value calendar-trigger`} onClick={() => setShowCalendar(true)}>
-              <div className="floating-input date-range-display">
-                {formattedRange}
+            <div className="date-range-row">
+              <div className="date-box" onClick={() => setShowStartPicker(true)}>
+                <span className="date-label">מתאריך</span>
+                <span className={`date-value ${!startDate ? 'muted' : ''}`}>{startDateDisplay}</span>
               </div>
-              <label className="floating-label">תקופת חיוב (אופציונלי)</label>
-              <span className="calendar-icon">📅</span>
+              <div className="date-arrow">←</div>
+              <div className="date-box" onClick={() => setShowEndPicker(true)}>
+                <span className="date-label">עד תאריך</span>
+                <span className={`date-value ${!endDate ? 'muted' : ''}`}>{endDateDisplay}</span>
+              </div>
 
-              {showCalendar && (
-                <div className="calendar-overlay">
-                  <div className="calendar-popover" ref={calendarRef} onClick={e => e.stopPropagation()}>
-                    <DayPicker
-                      mode="range"
-                      selected={dateRange}
-                      onSelect={setDateRange}
-                      locale={he}
-                      dir="rtl"
-                      numberOfMonths={windowWidth > 768 ? 2 : 1}
-                      className="custom-rdp"
-                    />
-                    <div className="calendar-footer">
-                      <button className="btn btn-primary btn-sm" onClick={() => setShowCalendar(false)}>אישור</button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <ConfigProvider locale={heIL}>
+                <DatePicker
+                  visible={showStartPicker}
+                  onClose={() => setShowStartPicker(false)}
+                  onConfirm={handleStartDateSelect}
+                  value={startDate || new Date()}
+                  title="תאריך התחלה"
+                />
+                <DatePicker
+                  visible={showEndPicker}
+                  onClose={() => setShowEndPicker(false)}
+                  onConfirm={handleEndDateSelect}
+                  value={endDate || startDate || new Date()}
+                  title="תאריך סיום"
+                  min={startDate || undefined}
+                />
+              </ConfigProvider>
             </div>
 
             <div className={`floating-group ${amount ? 'has-value' : ''}`}>
-              <input ref={amountRef} type="number" inputMode="decimal" className={`floating-input ${amountError ? 'error' : ''}`} placeholder=" " value={amount} onChange={e => { setAmount(e.target.value); if (amountError) setAmountError(false); }} dir="ltr" style={{ textAlign: 'left' }} />
+              <input ref={amountRef} type="number" inputMode="decimal" className={`floating-input ${amountError ? 'error' : ''}`} placeholder=" " value={amount} onChange={e => { setAmount(e.target.value); if (amountError) setAmountError(false); }} dir="rtl" style={{ textAlign: 'right' }} />
               <label className="floating-label">סכום חשבון *</label>
             </div>
 
-            <div className="status-toggle-container">
-              {([BILL_STATUSES.PAID, BILL_STATUSES.PARTIAL, BILL_STATUSES.WAITING]).map(s => (
-                <button
-                  key={s}
-                  className={`status-toggle-btn ${status === s ? 'active' : ''} ${s}`}
-                  onClick={() => setStatus(s)}
-                >
-                  {s === 'paid' ? 'שולם' : s === 'partial' ? 'שילמתי חלק' : 'לא שולם'}
-                </button>
-              ))}
-            </div>
+            {!editingBill && (
+              <>
+                <div className="status-toggle-container">
+                  {([BILL_STATUSES.PAID, BILL_STATUSES.PARTIAL, BILL_STATUSES.WAITING]).map(s => (
+                    <button
+                      key={s}
+                      className={`status-toggle-btn ${status === s ? 'active' : ''} ${s}`}
+                      onClick={() => setStatus(s)}
+                    >
+                      {s === 'paid' ? 'שולם' : s === 'partial' ? 'שילמתי חלק' : 'לא שולם'}
+                    </button>
+                  ))}
+                </div>
 
-            {status === 'partial' && (
-              <div className={`floating-group ${paidAmount ? 'has-value' : ''}`} style={{ marginTop: '8px' }}>
-                <input type="number" inputMode="decimal" className="floating-input" placeholder=" " value={paidAmount} onChange={e => setPaidAmount(e.target.value)} dir="ltr" style={{ textAlign: 'left' }} />
-                <label className="floating-label">כמה שילמת עד כה? (₪)</label>
-              </div>
+                {status === 'partial' && (
+                  <div className={`floating-group ${paidAmount ? 'has-value' : ''}`} style={{ marginTop: '8px' }}>
+                    <input type="number" inputMode="decimal" className="floating-input" placeholder=" " value={paidAmount} onChange={e => setPaidAmount(e.target.value)} dir="ltr" style={{ textAlign: 'left' }} />
+                    <label className="floating-label">כמה שילמת עד כה? (₪)</label>
+                  </div>
+                )}
+              </>
             )}
 
             <button className="btn btn-primary btn-full submit-btn" onClick={handleSubmit} disabled={loading}>

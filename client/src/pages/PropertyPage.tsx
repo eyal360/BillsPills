@@ -32,6 +32,7 @@ export const PropertyPage: React.FC = () => {
   const [showPartialInput, setShowPartialInput] = useState(false);
   const [partialValue, setPartialValue] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'paid' | 'partial' | 'waiting' | null>(null);
+  const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
 
   // Undo Toast state
   const [undoAction, setUndoAction] = useState<UndoState>({ visible: false, label: '', undoFn: async () => { } });
@@ -133,15 +134,16 @@ export const PropertyPage: React.FC = () => {
             paid_amount: bill.amount || 0
           });
           
+          const remaining = (bill.amount || 0) - (bill.paid_amount || 0);
           await api.post(`/properties/${id}/bills/${bill.id}/events`, {
             title: 'החשבון שולם',
-            note: `סכום: ₪${bill.amount || 0}`
+            note: `יתרה לסילוק: ₪${remaining.toFixed(1)}`
           });
 
           handleBillUpdated(res.data);
+          setTimelineRefreshKey(prev => prev + 1); // Refresh timeline
           setShowPartialInput(false);
         } catch (err) {
-          // error logged to monitoring service in production
           setSelectedStatus(bill.status);
         }
       }, 50);
@@ -150,6 +152,13 @@ export const PropertyPage: React.FC = () => {
       setShowPartialInput(true);
     } else {
       // waiting status - revert
+      if ((bill.paid_amount || 0) > 0) {
+        if (!window.confirm('האם אתה בטוח? פעולה זו תבטל את כל התשלומים שבוצעו ותחזיר את היתרה למלואה.')) {
+          setSelectedStatus(bill.status);
+          return;
+        }
+      }
+
       try {
         const res = await api.put(`/bills/${bill.id}`, {
           ...bill,
@@ -157,10 +166,15 @@ export const PropertyPage: React.FC = () => {
           paid_amount: 0
         });
         
+        await api.post(`/properties/${id}/bills/${bill.id}/events`, {
+          title: 'התשלום בוטל',
+          note: 'החשבון הוחזר למצב "לא שולם"'
+        });
+
         handleBillUpdated(res.data);
+        setTimelineRefreshKey(prev => prev + 1); // Refresh timeline
         setShowPartialInput(false);
       } catch (err) {
-        // error logged to monitoring service in production
         setSelectedStatus(bill.status);
       }
     }
@@ -184,6 +198,7 @@ export const PropertyPage: React.FC = () => {
       });
 
       handleBillUpdated(res.data);
+      setTimelineRefreshKey(prev => prev + 1); // Refresh timeline
       setShowPartialInput(false);
     } catch (err) {
       // error logged to monitoring service in production
@@ -337,7 +352,7 @@ export const PropertyPage: React.FC = () => {
                             </div>
                           )}
 
-                          <BillTimeline billId={bill.id} propertyId={id!} />
+                          <BillTimeline billId={bill.id} propertyId={id!} refreshKey={timelineRefreshKey} />
                         </div>
                       )}
                     </div>

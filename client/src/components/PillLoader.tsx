@@ -26,10 +26,9 @@ export const PillLoader: React.FC<PillLoaderProps> = ({
         setProgress(p => {
           if (p >= 100) {
             clearInterval(interval);
-            onComplete?.();
             return 100;
           }
-          return p + 5; // Speed up to 100
+          return p + 5;
         });
       }, 30);
       return () => clearInterval(interval);
@@ -43,7 +42,13 @@ export const PillLoader: React.FC<PillLoaderProps> = ({
     } else {
       setProgress(loadingProgress);
     }
-  }, [demo, loadingProgress, isCompleting, onComplete]);
+  }, [demo, loadingProgress, isCompleting]);
+
+  useEffect(() => {
+    if (isCompleting && progress >= 100) {
+      onComplete?.();
+    }
+  }, [isCompleting, progress, onComplete]);
 
   // House inner dimensions: peak Y=40, floor Y=170. Total height = 130.
   const fillHeight = Math.min(130, Math.max(0, (progress / 100) * 130));

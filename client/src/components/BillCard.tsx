@@ -137,10 +137,19 @@ export const BillCard: React.FC<Props> = ({
   const amountDisplay = (() => {
     const total = bill.amount || 0;
     const paid = bill.paid_amount || 0;
-    if ((bill.status === 'partial' || (bill.status === 'paid' && paid < total)) && paid > 0) {
-      return `${paid.toLocaleString('he-IL', { minimumFractionDigits: 1 })}/${total.toLocaleString('he-IL', { minimumFractionDigits: 1 })}`;
+    
+    // Show X/Y if partial OR if it was paid but we want to see the balance (like if total changed)
+    if (bill.status === 'partial' || (bill.status === 'paid' && paid > 0 && paid !== total)) {
+      return `${paid.toLocaleString('he-IL', { minimumFractionDigits: 0 })}/${total.toLocaleString('he-IL', { minimumFractionDigits: 0 })}`;
     }
-    return `₪${total.toLocaleString('he-IL', { minimumFractionDigits: 1 })}`;
+    
+    // If it's paid in full, just show the total with shekel sign
+    if (bill.status === 'paid') {
+      return `₪${total.toLocaleString('he-IL', { minimumFractionDigits: 0 })}`;
+    }
+
+    // Default: unpaid, show total
+    return `₪${total.toLocaleString('he-IL', { minimumFractionDigits: 0 })}`;
   })();
 
   const statusInfo = (() => {

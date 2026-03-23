@@ -47,8 +47,9 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
         icon
       });
       onAdded(res.data);
-    } catch {
-      setError('אירעה שגיאה בשמירת הנכס');
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'אירעה שגיאה בשמירת הנכס';
+      setError(msg);
     } finally {
       setLoading(false);
     }

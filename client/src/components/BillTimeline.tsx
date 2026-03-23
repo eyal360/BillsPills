@@ -12,6 +12,7 @@ interface BillEvent {
 interface Props {
   billId: string;
   propertyId: string;
+  refreshKey?: number;
 }
 
 const formatTs = (iso: string) => {
@@ -24,7 +25,7 @@ const formatTs = (iso: string) => {
   return `${dd}/${mm}/${yy} | ${hh}:${min}`;
 };
 
-export const BillTimeline: React.FC<Props> = ({ billId, propertyId }) => {
+export const BillTimeline: React.FC<Props> = ({ billId, propertyId, refreshKey }) => {
   const [events, setEvents] = useState<BillEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +41,7 @@ export const BillTimeline: React.FC<Props> = ({ billId, propertyId }) => {
       }
     };
     fetchEvents();
-  }, [billId, propertyId]);
+  }, [billId, propertyId, refreshKey]);
 
   if (loading) return (
     <div className="timeline-loading">

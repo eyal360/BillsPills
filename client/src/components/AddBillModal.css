@@ -14,29 +14,61 @@
   margin: 0;
 }
 
-.calendar-trigger {
-  position: relative;
-  cursor: pointer;
-}
-
-.date-range-display {
+.date-range-row {
   display: flex;
   align-items: center;
-  min-height: 48px;
-  padding: 0 16px;
-  padding-left: 40px;
-  cursor: pointer;
+  justify-content: space-between;
+  gap: 12px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: 0.95rem;
+  padding: 10px 16px;
+  min-height: 60px;
+  cursor: pointer;
   transition: all 0.2s ease;
+  margin-top: 8px;
 }
 
-.date-range-display:hover {
+.date-range-row:hover {
   border-color: var(--brand-primary);
   background: rgba(108, 63, 255, 0.05);
+}
+
+.date-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.date-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: right;
+}
+
+.date-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.date-value.muted {
+  color: var(--text-secondary);
+  opacity: 0.5;
+  font-weight: 500;
+}
+
+.date-arrow {
+  color: var(--brand-primary);
+  opacity: 0.6;
+  font-size: 1.2rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Calendar Overlay for mobile overflow issues */
@@ -156,4 +188,36 @@
   margin-top: var(--space-md);
   padding: 14px;
   font-weight: 700;
+}
+
+/* antd-mobile DatePicker centering for PC */
+@media (min-width: 768px) {
+  .adm-popup-body {
+    max-width: 450px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+}
+
+/* Make DatePicker feel more snappy */
+.adm-popup, .adm-popup-body, .adm-mask {
+  transition-duration: 150ms !important;
+  animation-duration: 150ms !important;
+}
+
+.adm-mask {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition-duration: 150ms !important;
+}
+
+.adm-picker-header {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adm-picker-header-button {
+  color: var(--brand-primary) !important;
+  font-weight: 700 !important;
 }

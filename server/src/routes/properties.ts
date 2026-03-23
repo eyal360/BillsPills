@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const propertiesRouter = Router();
@@ -51,6 +52,7 @@ propertiesRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: R
     .single();
 
   if (error) {
+    logger.error('Failed to create property:', error);
     res.status(500).json({ error: error.message });
     return;
   }
@@ -134,6 +136,7 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
   }
 
   const { bill_type, amount, paid_amount, status, image_url, extracted_data, billing_period_start, billing_period_end } = req.body;
+  logger.info('Creating bill for property:', { id: req.params.id, body: req.body });
 
   const { data, error } = await supabase
     .from('bills')
@@ -152,6 +155,7 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
     .single();
 
   if (error) {
+    logger.error('Failed to create bill:', error);
     res.status(500).json({ error: error.message });
     return;
   }

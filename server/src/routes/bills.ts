@@ -31,6 +31,7 @@ const EXTRACTION_FIELDS = [
 // PUT update bill
 billsRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { bill_type, amount, paid_amount, status, extracted_data, billing_period_start, billing_period_end } = req.body;
+  logger.info('Updating bill:', { id: req.params.id, body: req.body });
 
   // Verify ownership through property
   const { data: bill } = await supabase
