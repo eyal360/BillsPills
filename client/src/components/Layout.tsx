@@ -8,9 +8,11 @@ interface LayoutProps {
   children: React.ReactNode;
   title?: string;
   showBack?: boolean;
+  headerActions?: React.ReactNode;
+  titleClassName?: string;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, title, showBack }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, title, showBack, headerActions, titleClassName }) => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -77,7 +79,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, showBack }) => 
   const firstName = user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || '';
 
   const handleUserClick = () => {
-    navigate('/settings');
+    if (location.pathname === '/settings') {
+      navigate('/');
+    } else {
+      navigate('/settings');
+    }
   };
 
   return (
@@ -200,7 +206,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, showBack }) => 
           style={{ 
             cursor: 'pointer',
             pointerEvents: 'auto',
-            padding: '8px'
+            padding: '0 16px'
           }}
         >
           <PillIcon size={40} style={{ filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.3))' }} />
@@ -215,7 +221,31 @@ export const Layout: React.FC<LayoutProps> = ({ children, title, showBack }) => 
           minHeight: '100dvh'
         }}
       >
-        {title && <h1 className="page-title text-center mb-xs">{title}</h1>}
+        {title && (
+          <div className="title-row-container" style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            marginBottom: 'var(--space-xs)',
+            position: 'relative'
+          }}>
+            <div style={{ flex: 1 }}></div>
+            <div className="title-with-actions" style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px',
+              justifyContent: 'center'
+            }}>
+              <h1 className={`page-title text-center ${titleClassName || ''}`} style={{ margin: 0 }}>{title}</h1>
+              {headerActions && (
+                <div className="header-actions" style={{ display: 'flex', alignItems: 'center' }}>
+                  {headerActions}
+                </div>
+              )}
+            </div>
+            <div style={{ flex: 1 }}></div>
+          </div>
+        )}
         {children}
       </main>
     </div>

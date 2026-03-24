@@ -5,6 +5,7 @@ import { logger } from '../lib/logger';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const propertiesRouter = Router();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // GET all properties for current user
 propertiesRouter.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -61,11 +62,18 @@ propertiesRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: R
 
 // PUT update property
 propertiesRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { name, address, description, icon } = req.body;
+  const { name, address, description, icon, is_archived } = req.body;
 
   const { data, error } = await supabase
     .from('properties')
-    .update({ name, address, description, icon, updated_at: new Date().toISOString() })
+    .update({ 
+      name, 
+      address, 
+      description, 
+      icon, 
+      is_archived,
+      updated_at: new Date().toISOString() 
+    })
     .eq('id', req.params.id)
     .eq('user_id', req.user!.id)
     .select()
@@ -135,12 +143,23 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
     return;
   }
 
-  const { bill_type, amount, paid_amount, status, image_url, extracted_data, billing_period_start, billing_period_end } = req.body;
+  const { 
+    bill_type, 
+    amount, 
+    paid_amount, 
+    status, 
+    image_url, 
+    extracted_data, 
+    billing_period_start, 
+    billing_period_end,
+    processing_duration_ms
+  } = req.body;
   logger.info('Creating bill for property:', { id: req.params.id, body: req.body });
 
   const { data, error } = await supabase
     .from('bills')
     .insert({
+      user_id: req.user!.id,
       property_id: req.params.id,
       bill_type,
       amount,
@@ -150,6 +169,7 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
       extracted_data: extracted_data || {},
       billing_period_start,
       billing_period_end,
+      processing_duration_ms
     })
     .select()
     .single();
@@ -168,7 +188,46 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
     note: `סוג: ${bill_type}${amount ? ` | סכום: ₪${amount}` : ''}${paid_amount ? ` | שולם: ₪${paid_amount}` : ''}`,
   });
 
+  // --- RAG: Generate and store embedding ---
+  try {
+    const embeddingModelName = process.env.GEMINI_EMBEDDING_MODEL || 'models/gemini-embedding-2-preview';
+    const embeddingModel = genAI.getGenerativeModel({ model: embeddingModelName });
+    
+    // Create a searchable text representation of the bill
+    const contentToEmbed = `סוג חשבון: ${bill_type}\nסכום: ${amount}\nנתונים שחולצו: ${JSON.stringify(extracted_data)}`;
+    
+    logger.info(`Generating embedding for bill ${data.id} using ${embeddingModelName}...`);
+    
+    const embedResult = await embeddingModel.embedContent({
+      content: { role: 'user', parts: [{ text: contentToEmbed }] },
+      taskType: 'RETRIEVAL_DOCUMENT' as any,
+    });
+    
+    const embedding = embedResult.embedding.values;
 
+    if (!embedding || embedding.length === 0) {
+      throw new Error('Generated embedding is empty');
+    }
+
+    const { error: insertError } = await supabase.from('bill_documents').insert({
+      bill_id: data.id,
+      user_id: req.user!.id,
+      content: contentToEmbed,
+      embedding: embedding
+    });
+
+    if (insertError) {
+      logger.error('Supabase RAG insertion error:', insertError);
+    } else {
+      logger.info('Successfully stored bill embedding in bill_documents table.');
+    }
+  } catch (ragErr: any) {
+    logger.error('RAG System Failure:', {
+      message: ragErr.message,
+      stack: ragErr.stack,
+      model: process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004'
+    });
+  }
 
   res.status(201).json(data);
 });

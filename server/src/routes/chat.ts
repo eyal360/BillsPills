@@ -45,10 +45,12 @@ chatRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: Respons
     let ragContext = '';
     try {
       if (!isAdmin) {
-        // Fallback to embedding-001 which is globally available if text-embedding-004 404s
-        const embeddingModelName = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001';
+        const embeddingModelName = process.env.GEMINI_EMBEDDING_MODEL || 'models/gemini-embedding-2-preview';
         const embeddingModel = genAI.getGenerativeModel({ model: embeddingModelName });
-        const embedResult = await embeddingModel.embedContent(message);
+        const embedResult = await embeddingModel.embedContent({
+          content: { role: 'user', parts: [{ text: message }] },
+          taskType: 'RETRIEVAL_QUERY' as any,
+        });
         const queryEmbedding = embedResult.embedding.values;
 
         // Perform similarity search

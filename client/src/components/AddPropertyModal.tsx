@@ -6,16 +6,18 @@ import './AddPropertyModal.css';
 interface Props {
   onClose: () => void;
   onAdded: (property: Property) => void;
+  initialName?: string;
+  editingProperty?: Property | null;
 }
 
 type Step = 1 | 2;
 
-export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
+export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded, initialName = '', editingProperty }) => {
   const [step, setStep] = useState<Step>(1);
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [description, setDescription] = useState('');
-  const [icon, setIcon] = useState('🏢');
+  const [name, setName] = useState(editingProperty?.name || initialName);
+  const [address, setAddress] = useState(editingProperty?.address || '');
+  const [description, setDescription] = useState(editingProperty?.description || '');
+  const [icon, setIcon] = useState(editingProperty?.icon || '🏢');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [nameError, setNameError] = useState(false);
@@ -40,12 +42,19 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded }) => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/properties', {
+      const payload = {
         name: name.trim(),
         address: address.trim(),
         description: description.trim(),
         icon
-      });
+      };
+
+      let res;
+      if (editingProperty) {
+        res = await api.put(`/properties/${editingProperty.id}`, payload);
+      } else {
+        res = await api.post('/properties', payload);
+      }
       onAdded(res.data);
     } catch (err: any) {
       const msg = err.response?.data?.error || 'אירעה שגיאה בשמירת הנכס';

@@ -17,6 +17,12 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 
+// Simple request logger
+app.use((req, _res, next) => {
+  logger.info(`${req.method} ${req.url}`);
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: '20mb' })); // This line was not explicitly changed in the provided snippet, keeping it as is from original.
 

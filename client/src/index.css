@@ -79,6 +79,7 @@
   --calendar-foreign-badge: #253352;
   --calendar-foreign-badge-text: #8ab4f8;
   --stepper-dot-bg: rgba(255, 255, 255, 0.25);
+  --bg-modal-rgb: 30, 30, 30; /* Darker Surface */
 }
 
 /* Fallback/Base */
@@ -97,6 +98,7 @@
   --bg-drawer: var(--popover);
   --bg-input: var(--background);
   --bg-modal: var(--popover);
+  --bg-modal-rgb: 255, 255, 255; /* Default white */
 
   --text-primary: var(--text);
   --text-secondary: var(--text-secondary-color);
@@ -504,6 +506,19 @@ p {
   line-height: 1;
   margin: 0 !important;
   padding: 0 16px;
+}
+
+.property-title {
+  font-family: 'Rubik', 'Segoe UI', sans-serif !important;
+  font-weight: 800;
+  font-size: clamp(2rem, 10vw, 3.2rem);
+  text-transform: none;
+  background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0, 114, 255, 0.2));
+  letter-spacing: -2.5px;
 }
 
 .page-content {

@@ -9,7 +9,10 @@ import { ExpenseModal } from '../components/ExpenseModal';
 import { CustomSelect } from '../components/CustomSelect';
 import { BillTimeline } from '../components/BillTimeline';
 import { MONTHS } from '../lib/constants';
-import { PieChart } from 'lucide-react';
+import { PieChart, MoreVertical, Edit, Archive, Trash2, ArchiveRestore } from 'lucide-react';
+import { useBillProcess } from '../contexts/BillProcessContext';
+import { AddPropertyModal } from '../components/AddPropertyModal';
+import { useNavigate } from 'react-router-dom';
 import './PropertyPage.css';
 
 interface UndoState {
@@ -20,10 +23,10 @@ interface UndoState {
 
 export const PropertyPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { activeProcessId, openModal } = useBillProcess();
   const [property, setProperty] = useState<Property | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddBill, setShowAddBill] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | undefined>();
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [filterYear, setFilterYear] = useState<number | null>(null);
@@ -33,10 +36,26 @@ export const PropertyPage: React.FC = () => {
   const [partialValue, setPartialValue] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'paid' | 'partial' | 'waiting' | null>(null);
   const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showEditPropertyModal, setShowEditPropertyModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const navigate = useNavigate();
 
   // Undo Toast state
   const [undoAction, setUndoAction] = useState<UndoState>({ visible: false, label: '', undoFn: async () => { } });
   const undoTimer = useRef<any>(null);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -97,6 +116,48 @@ export const PropertyPage: React.FC = () => {
     bills.forEach(b => b.created_at && years.add(new Date(b.created_at).getFullYear()));
     return Array.from(years).sort((a, b) => b - a);
   }, [bills]);
+
+  const handleEditProperty = () => {
+    setShowEditPropertyModal(true);
+    setShowMenu(false);
+  };
+
+  const handleArchiveToggle = async () => {
+    if (!property) return;
+    const isArchiving = !property.is_archived;
+    
+    const confirmMsg = isArchiving 
+      ? 'האם בטוח? פעולה זו תהפוך את הנכס ללא פעיל, אך כל המידע יישמר ותוכל לבטל זאת בכל עת.'
+      : 'האם ברצונך להחזיר את הנכס לארכיון הפעיל?';
+    
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await api.put(`/properties/${property.id}`, {
+        ...property,
+        is_archived: isArchiving
+      });
+      setProperty(res.data);
+      setShowMenu(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeletePropertyAction = () => {
+    setShowDeleteConfirm(true);
+    setShowMenu(false);
+  };
+
+  const executeDeleteProperty = async () => {
+    if (!property) return;
+    try {
+      await api.delete(`/properties/${property.id}`);
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleBillUpdated = (updated: Bill) => {
     setBills(prev => prev.map(b => b.id === updated.id ? updated : b));
@@ -183,25 +244,48 @@ export const PropertyPage: React.FC = () => {
   const handleUpdatePartial = async (bill: Bill) => {
     const amountVal = parseFloat(partialValue);
     if (isNaN(amountVal)) return;
+
+    if (amountVal < 0) {
+      window.alert('לא ניתן להזין סכום שלילי');
+      return;
+    }
+
+    const totalBillAmount = bill.amount || 0;
+    if (amountVal > totalBillAmount) {
+      window.alert('הסכום ששולם לא יכול להיות גדול מסכום החשבון המלא (' + totalBillAmount + '₪)');
+      return;
+    }
+
+    let statusToSave: 'partial' | 'paid' = 'partial';
+    let finalAmountVal = amountVal;
+
+    if (amountVal === totalBillAmount) {
+      if (!window.confirm('הסכום שהזנת תואם לסכום החשבון המלא. האם לסמן את החשבון כשולם במלואו?')) {
+        return;
+      }
+      statusToSave = 'paid';
+    }
     
     try {
       const res = await api.put(`/bills/${bill.id}`, { 
         ...bill, 
-        status: 'partial', 
-        paid_amount: amountVal 
+        status: statusToSave, 
+        paid_amount: finalAmountVal 
       });
 
-      // Add timeline event for partial payment
+      // Add timeline event
       await api.post(`/properties/${id}/bills/${bill.id}/events`, {
-        title: 'שולם חלקית',
-        note: `שולם: ₪${amountVal} | נשאר: ₪${((bill.amount || 0) - amountVal).toFixed(1)}`
+        title: statusToSave === 'paid' ? 'החשבון שולם במלואו' : 'שולם חלקית',
+        note: statusToSave === 'paid' 
+          ? `החשבון סולק במלואו (₪${finalAmountVal})`
+          : `שולם: ₪${amountVal} | נשאר: ₪${(totalBillAmount - amountVal).toFixed(1)}`
       });
 
       handleBillUpdated(res.data);
       setTimelineRefreshKey(prev => prev + 1); // Refresh timeline
       setShowPartialInput(false);
     } catch (err) {
-      // error logged to monitoring service in production
+      console.error('Partial payment error:', err);
     }
   };
 
@@ -247,7 +331,39 @@ export const PropertyPage: React.FC = () => {
   );
 
   return (
-    <Layout title={property?.name || 'נכס'}>
+    <Layout 
+      title={property?.name || 'נכס'}
+      titleClassName="property-title"
+      headerActions={
+        <div className="property-menu-container" ref={menuRef}>
+          <button 
+            className="btn-icon header-action-btn" 
+            onClick={() => setShowMenu(!showMenu)}
+            aria-label="תפריט נכס"
+          >
+            <MoreVertical size={20} />
+          </button>
+          
+          {showMenu && (
+            <div className={`property-dropdown ${showMenu ? 'show' : ''}`}>
+              <button className="dropdown-item" onClick={handleEditProperty}>
+                <Edit size={16} />
+                <span>ערוך נכס</span>
+              </button>
+              <button className="dropdown-item" onClick={handleArchiveToggle}>
+                {property?.is_archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                <span>{property?.is_archived ? 'ביטול ארכיון' : 'העבר לארכיון'}</span>
+              </button>
+              <div className="dropdown-divider"></div>
+              <button className="dropdown-item delete" onClick={handleDeletePropertyAction}>
+                <Trash2 size={16} />
+                <span>מחק נכס</span>
+              </button>
+            </div>
+          )}
+        </div>
+      }
+    >
       <div className="page-content">
         <div className="summary-wrapper">
           <div className="summary-section card">
@@ -281,7 +397,7 @@ export const PropertyPage: React.FC = () => {
 
         <div className="bills-section">
           <div className="bills-header flex justify-center mb-lg">
-            <button className="btn btn-primary btn-lg" style={{ minWidth: '200px' }} onClick={() => { setEditingBill(undefined); setShowAddBill(true); }}>
+            <button className="btn btn-primary btn-lg" style={{ minWidth: '200px' }} onClick={() => { setEditingBill(undefined); openModal('new'); }}>
               + חשבון חדש
             </button>
           </div>
@@ -315,7 +431,7 @@ export const PropertyPage: React.FC = () => {
                         onUpdated={handleBillUpdated}
                         onDeleted={(id) => handleDeleteBill(id)}
                         onUndoableAction={handleUndoableAction}
-                        onEdit={(b) => { setEditingBill(b); setShowAddBill(true); setExpandedBillId(null); setShowPartialInput(false); }}
+                        onEdit={(b) => { setEditingBill(b); openModal('new'); setExpandedBillId(null); setShowPartialInput(false); }}
                         onPress={() => toggleExpand(bill.id)}
                       />
                       {isExpanded && (
@@ -369,15 +485,21 @@ export const PropertyPage: React.FC = () => {
         </div>
       </div>
 
-      {showAddBill && (
+      {undoAction.visible && (
+        <div className="undo-toast" onClick={executeUndo}>
+          <span>{undoAction.label} נמחק. <u>ביטול</u></span>
+        </div>
+      )}
+
+      {(activeProcessId || editingBill) && (
         <AddBillModal
           propertyId={id!}
           editingBill={editingBill}
-          onClose={() => setShowAddBill(false)}
+          onClose={() => setEditingBill(undefined)}
           onAdded={(b) => {
             if (editingBill) handleBillUpdated(b);
             else setBills(prev => [b, ...prev]);
-            setShowAddBill(false);
+            setEditingBill(undefined);
           }}
         />
       )}
@@ -395,10 +517,54 @@ export const PropertyPage: React.FC = () => {
         />
       )}
 
-      {undoAction.visible && (
-        <div className="undo-toast">
-          <span>{undoAction.label}</span>
-          <button onClick={executeUndo}>בטל פעולה</button>
+      {showEditPropertyModal && property && (
+        <AddPropertyModal
+          onClose={() => setShowEditPropertyModal(false)}
+          onAdded={(updated) => {
+            setProperty(updated);
+            setShowEditPropertyModal(false);
+          }}
+          editingProperty={property}
+        />
+      )}
+
+      {showDeleteConfirm && (
+        <div className="modal-backdrop" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal delete-confirm-modal">
+            <div className="modal-header">
+              <h2 className="modal-title">מחיקת נכס</h2>
+              <button className="modal-close" onClick={() => setShowDeleteConfirm(false)}>✕</button>
+            </div>
+            <div className="modal-body text-center">
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+              <p className="mb-lg">
+                מחיקת <strong>{property?.name}</strong> תמחוק לצמיתות את כל היסטוריית החשבונות והתשלומים שלו.
+                <br /><br />
+                מומלץ להעביר לארכיון במקום - כך המידע יישמר אך הנכס לא יופיע ברשימה הפעילה.
+              </p>
+              
+              <div className="delete-modal-actions">
+                <button 
+                  className="btn btn-primary btn-full mb-md" 
+                  onClick={() => { handleArchiveToggle(); setShowDeleteConfirm(false); }}
+                >
+                  העבר לארכיון (מומלץ)
+                </button>
+                <button 
+                  className="btn btn-danger btn-full mb-md" 
+                  onClick={executeDeleteProperty}
+                >
+                  מחק לצמיתות
+                </button>
+                <button 
+                  className="btn btn-ghost btn-full" 
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </Layout>

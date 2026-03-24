@@ -116,6 +116,7 @@ billsRouter.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: R
 
 // POST OCR — upload image and extract bill data
 billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  logger.info('OCR Handler entered', { file: req.file?.originalname, size: req.file?.size });
   if (!req.file) {
     res.status(400).json({ error: 'No file uploaded' });
     return;
@@ -138,6 +139,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
   }
 
   try {
+    const startTimeOCR = Date.now();
     const base64Image = req.file.buffer.toString('base64');
 
     const propertiesContext = properties.length > 0 
@@ -150,7 +152,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       properties_context: propertiesContext
     });
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     const model = genAI.getGenerativeModel({ model: modelName });
     
     logger.info(`Starting OCR extraction with ${modelName}...`);
@@ -193,6 +195,27 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
 
     logger.info(`OCR Success: Type=${billType}, Amount=${amount}, Period=${billingPeriodStart} to ${billingPeriodEnd}, PropMatch=${propertyId}`);
 
+    // Generate embedding in-memory (consolidated pipeline)
+    let embedding: number[] | null = null;
+    try {
+      const embeddingModelName = process.env.GEMINI_EMBEDDING_MODEL || 'models/gemini-embedding-2-preview';
+      const embeddingModel = genAI.getGenerativeModel({ model: embeddingModelName });
+      
+      const contentToEmbed = `סוג חשבון: ${billType}\nסכום: ${amount}\nנתונים שחולצו: ${JSON.stringify(extracted.extracted_data || extracted)}`;
+      
+      logger.info(`Generating embedding for review using ${embeddingModelName}...`);
+      
+      const embedResult = await embeddingModel.embedContent({
+        content: { role: 'user', parts: [{ text: contentToEmbed }] },
+        taskType: 'RETRIEVAL_DOCUMENT' as any,
+      });
+      
+      embedding = embedResult.embedding.values;
+    } catch (embedErr: any) {
+      logger.error('Embedding generation failure during OCR:', embedErr.message);
+      // We don't fail the whole OCR if embedding fails, but we log it
+    }
+
     res.json({
       bill_type: billType,
       amount: amount,
@@ -202,6 +225,8 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       recognized_property_name: recognizedPropertyName,
       extracted_data: extracted.extracted_data || extracted,
       fields: EXTRACTION_FIELDS,
+      embedding: embedding, // Return to client memory
+      processing_duration_ms: Date.now() - startTimeOCR
     });
   } catch (err: any) {
     logger.error('Internal OCR processing failure:', {
@@ -218,4 +243,34 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
 // GET extraction fields
 billsRouter.get('/fields', requireAuth, (_req: AuthenticatedRequest, res: Response): void => {
   res.json({ fields: EXTRACTION_FIELDS });
+});
+
+// GET /bills/average-duration
+billsRouter.get('/average-duration', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('bills')
+      .select('processing_duration_ms')
+      .eq('user_id', req.user!.id)
+      .not('processing_duration_ms', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    if (error) {
+      res.json({ average: 20000 });
+      return;
+    }
+    
+    if (!data || data.length === 0) {
+      res.json({ average: 20000 });
+      return;
+    }
+    
+    const sum = data.reduce((acc: number, bill: any) => acc + (bill.processing_duration_ms || 0), 0);
+    const average = Math.round(sum / data.length);
+    
+    res.json({ average: average || 20000 });
+  } catch (err) {
+    res.json({ average: 20000 });
+  }
 });

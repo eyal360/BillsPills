@@ -1,0 +1,143 @@
+.floating-icons-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 16px;
+  z-index: 9999;
+}
+
+.floating-process-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.3s ease;
+  border: 1px solid var(--border-subtle);
+}
+
+.floating-process-icon:hover {
+  transform: scale(1.1);
+}
+
+.floating-process-icon.ready {
+  background-color: #008060; /* Pill Green */
+  border-color: #005e46;
+}
+
+.floating-process-icon.ready span {
+  filter: brightness(0) invert(1);
+}
+
+.spinning-loader {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border: 3px solid transparent;
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  background: #ff4d4f;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+}
+
+.remove-btn {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 20px;
+  height: 20px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.floating-process-icon:hover .remove-btn {
+  opacity: 1;
+}
+
+.process-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.finish-bubble {
+  position: absolute;
+  right: 70px; /* To the left of the icon (LTR right is RTL left-ish, but right: 70px from container right edge is correct) */
+  background: var(--accent-primary);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 18px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: bubblePop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
+}
+
+.floating-process-icon.ready {
+  background-color: #008060 !important; /* Pill Green */
+  border-color: #005e46;
+}
+
+.floating-process-icon.ready span {
+  filter: brightness(0) invert(1);
+}
+
+.finish-bubble {
+  position: absolute;
+  right: 70px;
+  background: #008060 !important; /* Pill Green */
+  color: white !important;
+  padding: 6px 14px;
+  border-radius: 18px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: bubblePop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
+  z-index: 10;
+}
+
+@keyframes bubblePop {
+  0% { transform: scale(0) translateX(20px); opacity: 0; }
+  100% { transform: scale(1) translateX(0); opacity: 1; }
+}

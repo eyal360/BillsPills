@@ -7,6 +7,8 @@ interface PillLoaderProps {
   isCompleting?: boolean;
   onComplete?: () => void;
   hideLabel?: boolean;
+  startTime?: number;
+  averageDuration?: number;
 }
 
 const ShekelPath = "M4.5 2C2.01472 2 0 4.01472 0 6.5V11H2V6.5C2 5.11929 3.11929 4 4.5 4H8V2H4.5ZM13.5 13C15.9853 13 18 10.9853 18 8.5V4H16V8.5C16 9.88071 14.8807 11 13.5 11H10V13H13.5Z";
@@ -16,12 +18,33 @@ export const PillLoader: React.FC<PillLoaderProps> = ({
   demo = false,
   isCompleting = false,
   onComplete,
-  hideLabel = false
+  hideLabel = false,
+  startTime,
+  averageDuration
 }) => {
   const [progress, setProgress] = useState(loadingProgress);
 
   useEffect(() => {
+    // Normal estimation (OCR phase)
+    if (startTime && averageDuration && !isCompleting && !demo && progress < 100) {
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const target = (elapsed / averageDuration) * 100;
+        
+        // If the process is still ongoing but we've reached 100, stay at 100
+        // until the process set progress to 100 via prop or isCompleting
+        setProgress(prev => {
+          if (prev >= 100) return 100;
+          return Math.min(100, target);
+        });
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [startTime, averageDuration, isCompleting, demo]);
+
+  useEffect(() => {
     if (isCompleting) {
+      // Fast completion (Saving phase)
       const interval = setInterval(() => {
         setProgress(p => {
           if (p >= 100) {
@@ -39,8 +62,11 @@ export const PillLoader: React.FC<PillLoaderProps> = ({
         setProgress(p => (p >= 100 ? 0 : p + 1));
       }, 50);
       return () => clearInterval(timer);
-    } else {
-      setProgress(loadingProgress);
+    }
+
+    // Sync from prop if it reaches 100 (OCR finished)
+    if (loadingProgress >= 100) {
+      setProgress(100);
     }
   }, [demo, loadingProgress, isCompleting]);
 

@@ -22,4 +22,16 @@
 - **AI Engine**: Google Gemini.
 
 ---
+
+## 🤖 Gemini AI Models Comparison
+
+The system is designed to use Google Gemini for OCR and Chatbot capabilities. Below is a comparison of the latest models. **For consistency and optimal performance, Gemini 3 Flash is recommended for all use cases in this app.**
+
+| Model | Intelligence | Cost (1M tokens) | Ideal Use Case |
+|-------|--------------|------------------|----------------|
+| **Gemini 3.1 Pro** | 🏆 Highest | ~$2.00 in / $12.00 out | Deep financial reasoning & complex reporting |
+| **Gemini 3 Flash** | ⚡ Balanced | ~$0.50 in / $3.00 out | **Default**: OCR, RAG, and everyday assistant chat |
+| **Gemini 3.1 Flash-Lite** | 📉 Lowest | ~$0.10 in / $0.40 out | Basic text classification & simple status checks |
+
+---
 **Built for smart property owners who value their time.**

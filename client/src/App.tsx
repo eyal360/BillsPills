@@ -9,6 +9,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
 import { AdminUserView } from './pages/AdminUserView';
 import { ChatBubble } from './components/ChatBubble';
+import { BillProcessProvider } from './contexts/BillProcessContext';
+import { FloatingProcessManager } from './components/FloatingProcessManager';
 
 // Protected Route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({ children, adminOnly }) => {
@@ -68,6 +70,7 @@ const AppRoutes: React.FC = () => {
 
       {/* Floating chat bubble — available on all authenticated pages except settings */}
       {user && !isSettings && <ChatBubble />}
+      {user && <FloatingProcessManager />}
     </>
   );
 };
@@ -77,7 +80,9 @@ const App: React.FC = () => {
     <BrowserRouter>
       <AuthProvider>
         <SettingsProvider>
-          <AppRoutes />
+          <BillProcessProvider>
+            <AppRoutes />
+          </BillProcessProvider>
         </SettingsProvider>
       </AuthProvider>
     </BrowserRouter>
