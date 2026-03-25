@@ -74,33 +74,39 @@ export const ExpenseModal: React.FC<Props> = ({
         <div className="summary-section card" style={{ 
           background: 'var(--bg-input)', 
           border: 'none', 
-          marginBottom: 'var(--space-md)', 
+          marginBottom: '8px', 
           padding: '8px 16px',
-          gap: '2px' 
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '4px',
+          flexGrow: 0,
+          flexShrink: 0
         }}>
-          <div className="summary-total" style={{ fontSize: '2.4rem', lineHeight: '1' }}>
+          <div className="summary-total" style={{ fontSize: '1.8rem', lineHeight: '1.1', fontWeight: 900 }}>
             ₪{total.toLocaleString('he-IL', { minimumFractionDigits: 1 })}
           </div>
-          <div className="summary-label" style={{ fontSize: '0.75rem' }}>{summaryLabel}</div>
+          <div className="summary-label" style={{ fontSize: '0.75rem', opacity: 0.8, marginBottom: '4px' }}>{summaryLabel}</div>
 
-          <div className="time-filter" style={{ marginTop: '8px' }} dir="rtl">
+          <div className="time-filter" style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }} dir="rtl">
             <CustomSelect
               value={filterYear != null ? String(filterYear) : ''}
               onChange={val => { setFilterYear(val ? Number(val) : null); setFilterMonth(null); }}
               options={availableYears.map(y => ({ value: String(y), label: String(y) }))}
-              placeholder="בחר שנה"
+              placeholder="שנה"
             />
 
             <CustomSelect
               value={filterMonth != null ? String(filterMonth) : ''}
               onChange={val => setFilterMonth(val ? Number(val) : null)}
               options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
-              placeholder="בחר חודש"
+              placeholder="חודש"
               disabled={!filterYear}
             />
 
             {(filterYear || filterMonth) && (
-              <button className="btn btn-ghost btn-sm filter-reset-btn" onClick={resetFilters}>✕</button>
+              <button className="btn btn-ghost btn-sm filter-reset-btn" style={{ padding: '0 8px', height: '32px' }} onClick={resetFilters}>✕</button>
             )}
           </div>
         </div>
@@ -112,7 +118,7 @@ export const ExpenseModal: React.FC<Props> = ({
           </div>
         ) : (
           <div className="chart-fullscreen-container recharts-container responsive-pie-full">
-            <ResponsiveContainer width="100%" height={500}>
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data}

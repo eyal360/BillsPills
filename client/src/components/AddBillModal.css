@@ -34,6 +34,16 @@
   background: rgba(108, 63, 255, 0.05);
 }
 
+.date-range-row.warning {
+  border-color: #ff9f43 !important;
+  box-shadow: 0 0 0 1px rgba(255, 159, 67, 0.2);
+}
+
+.floating-input.warning {
+  border-color: #ff9f43 !important;
+  box-shadow: 0 0 0 1px rgba(255, 159, 67, 0.2);
+}
+
 .date-box {
   flex: 1;
   display: flex;

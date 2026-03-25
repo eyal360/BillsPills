@@ -61,8 +61,10 @@
 .property-address {
   max-width: 100%;
   word-break: break-word;
-  font-size: 0.8rem;
-  opacity: 0.8;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  opacity: 0.9;
+  font-weight: 500;
 }
 
 

@@ -13,6 +13,7 @@ interface Props {
   placeholder?: string;
   disabled?: boolean;
   error?: boolean;
+  warning?: boolean;
   className?: string;
 }
 
@@ -23,6 +24,7 @@ export const CustomSelect: React.FC<Props> = ({
   placeholder = 'בחר...',
   disabled = false,
   error = false,
+  warning = false,
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -38,12 +40,12 @@ export const CustomSelect: React.FC<Props> = ({
       {/* Trigger — looks like a floating input */}
       <button
         type="button"
-        className={`custom-select-trigger ${value ? 'has-value' : ''} ${disabled ? 'disabled' : ''} ${error ? 'error' : ''}`}
+        className={`custom-select-trigger ${value ? 'has-value' : ''} ${disabled ? 'disabled' : ''} ${error ? 'error' : ''} ${warning && !value ? 'warning' : ''}`}
         onClick={() => !disabled && setOpen(true)}
         disabled={disabled}
       >
         <span className={`custom-select-value ${!value ? 'placeholder' : ''}`}>
-          {selected ? selected.label : placeholder}
+          {selected ? selected.label : (value || placeholder)}
         </span>
         <span className="custom-select-chevron">›</span>
       </button>
@@ -59,10 +61,11 @@ export const CustomSelect: React.FC<Props> = ({
                 <button
                   key={opt.value}
                   type="button"
-                  className={`custom-select-option ${value === opt.value ? 'selected' : ''}`}
+                  className={`custom-select-option ${value === opt.value ? 'selected' : ''} ${opt.value === 'manual' ? 'special' : ''}`}
                   onClick={() => handleSelect(opt.value)}
                 >
                   {opt.label}
+                  {opt.value === 'manual' && <span style={{ marginLeft: '8px' }}>✏️</span>}
                   {value === opt.value && <span className="custom-select-check">✓</span>}
                 </button>
               ))}

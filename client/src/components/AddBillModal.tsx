@@ -98,11 +98,50 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   const [amountError, setAmountError] = useState(false);
   const [propertyError, setPropertyError] = useState(false);
   const [partialAmountError, setPartialAmountError] = useState<string | null>(null);
+  const [ocrUsed, setOcrUsed] = useState(false);
+  const [ocrFields, setOcrFields] = useState<Set<string>>(new Set());
+  const [customBillTypes, setCustomBillTypes] = useState<string[]>([]);
 
-  const { confirm } = useDialog();
+  const { confirm, prompt, alert } = useDialog();
 
   const fileRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
+
+  const fetchUniqueTypes = async () => {
+    try {
+      const res = await api.get('/bills/unique-types');
+      setCustomBillTypes(res.data.types);
+    } catch (err) {
+      console.error('Failed to fetch bill types', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchUniqueTypes();
+  }, []);
+
+  const sortedBillTypes = React.useMemo(() => {
+    const core = [...BILL_TYPES].sort((a, b) => a.localeCompare(b, 'he'));
+    const custom = customBillTypes.filter(t => !core.includes(t) && t !== 'אחר');
+    return [...core, ...custom];
+  }, [customBillTypes]);
+
+  const selectOptions = React.useMemo(() => [
+    ...sortedBillTypes.map(t => ({ value: t, label: t })),
+    { value: 'manual', label: 'הזן ידנית' }
+  ], [sortedBillTypes]);
+
+  const handleManualBillType = async () => {
+    const newVal = await prompt('הוספת סוג חשבון חדש', '', 'הזן שם...');
+    if (newVal && newVal.trim().length >= 3) {
+      setBillType(newVal.trim());
+      setBillTypeError(false);
+    } else if (newVal !== null) {
+      // If user typed something but too short, show alert then re-prompt?
+      // For now, simple alert as requested:
+      alert('שם קצר מדי', 'על שם סוג החשבון להכיל לפחות 3 תווים.');
+    }
+  };
 
   // Sync with process state if re-opening a minimized process
   useEffect(() => {
@@ -150,6 +189,8 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setEndDate(null);
       setCurrentPropertyId(propertyId || '');
       setError('');
+      setOcrUsed(false);
+      setOcrFields(new Set());
     }
   }, [activeProcessId]); // Only trigger on modal opening/switching
 
@@ -196,8 +237,24 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       });
       const data = res.data;
 
-      setBillType(data.bill_type || '');
-      setAmount(data.amount != null ? String(data.amount) : '');
+      // Track OCR recognized fields
+      setOcrUsed(true);
+      const fields = new Set<string>();
+
+      if (data.bill_type) {
+        setBillType(data.bill_type);
+        fields.add('billType');
+      } else {
+        setBillType('');
+      }
+
+      if (data.amount != null) {
+        setAmount(String(data.amount));
+        fields.add('amount');
+      } else {
+        setAmount('');
+      }
+
       setExtractedData(data.extracted_data || {});
       setEmbedding(data.embedding || null);
 
@@ -206,9 +263,20 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         const end = data.billing_period_end ? new Date(data.billing_period_end) : undefined;
         if (!isNaN(start.getTime())) {
           setStartDate(start);
-          setEndDate((end && !isNaN(end.getTime())) ? end : null);
+          fields.add('startDate');
+          if (end && !isNaN(end.getTime())) {
+            setEndDate(end);
+            fields.add('endDate');
+          } else {
+            setEndDate(null);
+          }
         }
+      } else {
+        setStartDate(null);
+        setEndDate(null);
       }
+
+      setOcrFields(fields);
 
       if (data.matched_property_id) {
         setCurrentPropertyId(data.matched_property_id);
@@ -349,6 +417,9 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       } else {
         res = await api.post<Bill>(`/properties/${currentPropertyId}/bills`, payload);
       }
+
+      // Refresh list of unique bill types
+      fetchUniqueTypes();
 
       if (activeProcessId) {
         completeProcess(activeProcessId, res.data.id, currentPropertyId);
@@ -494,14 +565,18 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
               <div className={`floating-group ${billType ? 'has-value' : ''}`}>
                 <CustomSelect
                   value={billType}
-                  onChange={val => { setBillType(val); setBillTypeError(false); }}
-                  options={BILL_TYPES.map(t => ({ value: t, label: t }))}
+                  onChange={val => {
+                    if (val === 'manual') handleManualBillType();
+                    else { setBillType(val); setBillTypeError(false); }
+                  }}
+                  options={selectOptions}
                   placeholder="סוג חשבון *"
                   error={billTypeError}
+                  warning={ocrUsed && !billType && !ocrFields.has('billType')}
                 />
               </div>
 
-              <div className="date-range-row">
+              <div className={`date-range-row ${ocrUsed && (!startDate || !endDate) && !ocrFields.has('startDate') ? 'warning' : ''}`}>
                 <div className="date-box" onClick={() => setShowStartPicker(true)}>
                   <span className="date-label">מתאריך</span>
                   <span className={`date-value ${!startDate ? 'muted' : ''}`}>{startDateDisplay}</span>
@@ -532,7 +607,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
               </div>
 
               <div className={`floating-group ${amount ? 'has-value' : ''}`}>
-                <input ref={amountRef} type="number" inputMode="decimal" className={`floating-input ${amountError ? 'error' : ''}`} placeholder=" " value={amount} onChange={e => { setAmount(e.target.value); if (amountError) setAmountError(false); }} dir="rtl" style={{ textAlign: 'right' }} />
+                <input ref={amountRef} type="number" inputMode="decimal" className={`floating-input ${amountError ? 'error' : ''} ${ocrUsed && !amount && !ocrFields.has('amount') ? 'warning' : ''}`} placeholder=" " value={amount} onChange={e => { setAmount(e.target.value); if (amountError) setAmountError(false); }} dir="rtl" style={{ textAlign: 'right' }} />
                 <label className="floating-label">סכום חשבון *</label>
               </div>
 

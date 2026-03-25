@@ -1,4 +1,4 @@
-export const BILL_TYPES = ['חשמל', 'מים', 'גז', 'ארנונה', 'ועד בית', 'אינטרנט', 'טלוויזיה', 'ביטוח', 'אחר'];
+export const BILL_TYPES = ['חשמל', 'מים', 'גז', 'ארנונה', 'ועד בית', 'אינטרנט', 'טלוויזיה', 'ביטוח'];
 
 export const BILL_STATUSES = {
   PAID: 'paid',
@@ -15,13 +15,14 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'אינטרנט': '#2196f3',// Blue variant
   'טלוויזיה': '#ef4444',// Red
   'ביטוח': '#64748b',  // Slate
-  'אחר': '#94a3b8'     // Slate light
+  'אחר': '#94a3b8',    // Default for others
+  'manual': '#ff9f43'  // Active/Manually entered color
 };
 
 export const BILL_ICONS: Record<string, string> = {
   'חשמל': '⚡', 'מים': '💧', 'גז': '🔥', 'ארנונה': '🏛️',
   'ועד בית': '🏢', 'אינטרנט': '🌐', 'טלוויזיה': '📺',
-  'ביטוח': '🛡️', 'אחר': '📄',
+  'ביטוח': '🛡️', 'אחר': '📄', 'manual': '✏️'
 };
 
 export const MONTHS = [

@@ -131,7 +131,7 @@ export const HomePage: React.FC = () => {
               onClick={() => setShowArchived(!showArchived)}
             >
               <div className="archive-divider-line"></div>
-              <div className="archive-title">
+              <div className="archive-title" dir="rtl">
                 <span>ארכיון ({properties.filter(p => p.is_archived).length})</span>
                 {showArchived ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
               </div>

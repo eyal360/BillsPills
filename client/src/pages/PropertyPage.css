@@ -108,29 +108,126 @@
   position: relative;
 }
 
-.bills-divider {
+/* Paid Section Collapsible */
+.paid-section-container {
+  margin-top: 24px;
+}
+
+/* Archive-style Header for Paid Section */
+.archive-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin: var(--space-md) 0;
-  flex-direction: rtl;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 24px;
+  transition: opacity 0.2s ease;
 }
 
-.bills-divider::after {
-  content: '';
-  height: 1px;
-  flex: 1;
-  background: var(--border-subtle);
+.archive-header:hover {
   opacity: 0.8;
 }
 
-.bills-divider span {
-  font-size: 0.85rem;
-  font-weight: 800;
+.archive-divider-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0),
+    var(--border-subtle) 15%,
+    var(--border-subtle) 85%,
+    rgba(255, 255, 255, 0)
+  );
+}
+
+:root[data-theme='light'] .archive-divider-line {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0),
+    rgba(0, 0, 0, 0.1) 15%,
+    rgba(0, 0, 0, 0.1) 85%,
+    rgba(0, 0, 0, 0.0)
+  );
+}
+
+.archive-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
+}
+
+.collapsible-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.collapsible-content.expanded {
+  max-height: 5000px; /* Large enough for many bills */
+  opacity: 1;
+  padding: 12px 0;
+}
+
+/* Year Groups */
+.year-group {
+  margin-bottom: 8px;
+  padding-right: 12px;
+  border-right: 2px solid rgba(108, 63, 255, 0.15);
+}
+
+.year-toggle-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  border-radius: var(--radius-md);
+}
+
+.year-toggle-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.year-label { font-size: 1.1rem; font-weight: 800; }
+.year-chevron { 
+  font-size: 1.2rem; 
+  transition: transform 0.3s ease;
+  color: var(--text-muted);
+}
+.year-chevron.open { transform: rotate(90deg); color: var(--brand-primary); }
+
+.year-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, opacity 0.2s ease;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 0;
+}
+
+.year-content.expanded {
+  max-height: 2000px;
+  opacity: 1;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .bill-container-expandable {

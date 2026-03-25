@@ -9,7 +9,7 @@ import { ExpenseModal } from '../components/ExpenseModal';
 import { CustomSelect } from '../components/CustomSelect';
 import { BillTimeline } from '../components/BillTimeline';
 import { MONTHS } from '../lib/constants';
-import { PieChart, MoreVertical, Edit, Archive, Trash2, ArchiveRestore } from 'lucide-react';
+import { PieChart, MoreVertical, Edit, Archive, Trash2, ArchiveRestore, ChevronDown, ChevronUp } from 'lucide-react';
 import { useBillProcess } from '../contexts/BillProcessContext';
 import { AddPropertyModal } from '../components/AddPropertyModal';
 import { useNavigate } from 'react-router-dom';
@@ -40,6 +40,8 @@ export const PropertyPage: React.FC = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showEditPropertyModal, setShowEditPropertyModal] = useState(false);
   const [partialError, setPartialError] = useState<string | null>(null);
+  const [isPaidSectionExpanded, setIsPaidSectionExpanded] = useState(false);
+  const [expandedYears, setExpandedYears] = useState<Record<number, boolean>>({});
   const { confirm } = useDialog();
   const navigate = useNavigate();
 
@@ -77,8 +79,8 @@ export const PropertyPage: React.FC = () => {
     fetchData();
   }, [id]);
 
-  const filteredBills = useMemo(() => {
-    const list = bills.filter(b => {
+  const { unpaidBills, paidBillsGrouped } = useMemo(() => {
+    const list = [...bills].filter(b => {
       if (!b.created_at) return true;
       const d = new Date(b.created_at);
       if (filterYear && d.getFullYear() !== filterYear) return false;
@@ -86,23 +88,45 @@ export const PropertyPage: React.FC = () => {
       return true;
     });
 
-    return list.sort((a, b) => {
-      const isUnpaidA = a.status === 'waiting' || a.status === 'partial';
-      const isUnpaidB = b.status === 'waiting' || b.status === 'partial';
-      if (isUnpaidA && !isUnpaidB) return -1;
-      if (!isUnpaidA && isUnpaidB) return 1;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    // Sort by date (newest first)
+    list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const unpaid = list.filter(b => b.status === 'waiting' || b.status === 'partial');
+    const paid = list.filter(b => b.status === 'paid');
+
+    const grouped: Record<number, Bill[]> = {};
+    paid.forEach(b => {
+      const year = new Date(b.created_at).getFullYear();
+      if (!grouped[year]) grouped[year] = [];
+      grouped[year].push(b);
     });
+
+    return {
+      unpaidBills: unpaid,
+      paidBillsGrouped: grouped,
+      allFiltered: list
+    };
+  }, [bills, filterYear, filterMonth]);
+
+  const allFiltered = useMemo(() => {
+    const list = bills.filter(b => {
+      if (!b.created_at) return true;
+      const d = new Date(b.created_at);
+      if (filterYear && d.getFullYear() !== filterYear) return false;
+      if (filterMonth && (d.getMonth() + 1) !== filterMonth) return false;
+      return true;
+    });
+    return list;
   }, [bills, filterYear, filterMonth]);
 
   const totalSpent = useMemo(() =>
-    filteredBills.reduce((sum, b) => sum + (b.amount || 0), 0),
-    [filteredBills]
+    allFiltered.reduce((sum, b) => sum + (b.amount || 0), 0),
+    [allFiltered]
   );
 
   const expenseSummary: ExpenseSummary[] = useMemo(() => {
     const map: Record<string, { total: number; count: number }> = {};
-    filteredBills.forEach(b => {
+    allFiltered.forEach(b => {
       if (!map[b.bill_type]) map[b.bill_type] = { total: 0, count: 0 };
       map[b.bill_type].total += b.amount || 0;
       map[b.bill_type].count++;
@@ -111,7 +135,7 @@ export const PropertyPage: React.FC = () => {
       bill_type,
       ...data,
     })).sort((a, b) => b.total - a.total);
-  }, [filteredBills]);
+  }, [allFiltered]);
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
@@ -127,10 +151,10 @@ export const PropertyPage: React.FC = () => {
   const handleArchiveToggle = async () => {
     if (!property) return;
     const isArchiving = !property.is_archived;
-    
+
     const confirmResult = await confirm({
-      title: isArchiving ? 'העברת נכס לארכיון' : 'ביטול ארכיון',
-      message: isArchiving 
+      title: isArchiving ? 'העברת נכס ל ' : 'ביטול ארכיון',
+      message: isArchiving
         ? 'האם בטוח? פעולה זו תהפוך את הנכס ללא פעיל, אך כל המידע יישמר ותוכל לבטל זאת בכל עת.'
         : 'האם ברצונך להחזיר את הנכס לארכיון הפעיל?',
       icon: isArchiving ? '📦' : '🏠',
@@ -139,7 +163,7 @@ export const PropertyPage: React.FC = () => {
         { label: 'ביטול', type: 'ghost' }
       ]
     });
-    
+
     if (confirmResult !== 0) return;
 
     try {
@@ -166,7 +190,7 @@ export const PropertyPage: React.FC = () => {
 
   const handleDeletePropertyAction = async () => {
     setShowMenu(false);
-    
+
     const result = await confirm({
       title: 'מחיקת נכס',
       message: (
@@ -229,14 +253,14 @@ export const PropertyPage: React.FC = () => {
           setSelectedStatus(bill.status);
           return;
         }
-        
+
         try {
           const res = await api.put(`/bills/${bill.id}`, {
             ...bill,
             status: 'paid',
             paid_amount: bill.amount || 0
           });
-          
+
           const remaining = (bill.amount || 0) - (bill.paid_amount || 0);
           await api.post(`/properties/${id}/bills/${bill.id}/events`, {
             title: 'החשבון שולם',
@@ -278,7 +302,7 @@ export const PropertyPage: React.FC = () => {
           status: 'waiting',
           paid_amount: 0
         });
-        
+
         await api.post(`/properties/${id}/bills/${bill.id}/events`, {
           title: 'התשלום בוטל',
           note: 'החשבון הוחזר למצב "לא שולם"'
@@ -330,18 +354,18 @@ export const PropertyPage: React.FC = () => {
       }
       statusToSave = 'paid';
     }
-    
+
     try {
-      const res = await api.put(`/bills/${bill.id}`, { 
-        ...bill, 
-        status: statusToSave, 
-        paid_amount: newTotalPaid 
+      const res = await api.put(`/bills/${bill.id}`, {
+        ...bill,
+        status: statusToSave,
+        paid_amount: newTotalPaid
       });
 
       // Add timeline event
       await api.post(`/properties/${id}/bills/${bill.id}/events`, {
         title: statusToSave === 'paid' ? 'החשבון שולם במלואו' : 'שולם חלקית',
-        note: statusToSave === 'paid' 
+        note: statusToSave === 'paid'
           ? `החשבון סולק במלואו (₪${newTotalPaid.toFixed(1)})`
           : `שולם עכשיו: ₪${newPaymentAmount} | סה"כ שולם: ₪${newTotalPaid.toFixed(1)} | נשאר: ₪${(totalBillAmount - newTotalPaid).toFixed(1)}`
       });
@@ -399,6 +423,10 @@ export const PropertyPage: React.FC = () => {
     }
   };
 
+  const toggleYear = (year: number) => {
+    setExpandedYears(prev => ({ ...prev, [year]: !prev[year] }));
+  };
+
   if (loading) return (
     <Layout>
       <div className="loading-center" style={{ minHeight: '60vh' }}>
@@ -409,19 +437,19 @@ export const PropertyPage: React.FC = () => {
   );
 
   return (
-    <Layout 
+    <Layout
       title={property?.name || 'נכס'}
       titleClassName="property-title"
       headerActions={
         <div className="property-menu-container" ref={menuRef}>
-          <button 
-            className="btn-icon header-action-btn" 
+          <button
+            className="btn-icon header-action-btn"
             onClick={() => setShowMenu(!showMenu)}
             aria-label="תפריט נכס"
           >
             <MoreVertical size={20} />
           </button>
-          
+
           {showMenu && (
             <div className={`property-dropdown ${showMenu ? 'show' : ''}`}>
               <button className="dropdown-item" onClick={handleEditProperty}>
@@ -480,7 +508,7 @@ export const PropertyPage: React.FC = () => {
             </button>
           </div>
 
-          {filteredBills.length === 0 ? (
+          {allFiltered.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon">📄</div>
               <h3>אין חשבונות עדיין</h3>
@@ -490,29 +518,27 @@ export const PropertyPage: React.FC = () => {
               {expandedBillId && (
                 <div className="global-blur-backdrop" onClick={() => setExpandedBillId(null)} />
               )}
-              {filteredBills.map((bill, index) => {
-                const isUnpaid = bill.status === 'waiting' || bill.status === 'partial';
-                const nextBill = filteredBills[index + 1];
-                const isNextPaid = nextBill && nextBill.status === 'paid';
-                const isExpanded = expandedBillId === bill.id;
 
-                return (
-                  <React.Fragment key={bill.id}>
-                    {index === 0 && isUnpaid && (
-                      <div className="bills-divider" style={{ marginBottom: '24px' }}>
-                        <span>נשאר לשלם</span>
-                      </div>
-                    )}
-                    <div className={`bill-container-expandable ${isExpanded ? 'expanded' : ''}`}>
+              {/* --- נשאר לשלם --- */}
+              {unpaidBills.length > 0 && (
+                <>
+                  <div className="archive-header" dir="ltr" style={{ cursor: 'default', pointerEvents: 'none', marginBottom: '16px' }}>
+                    <div className="archive-divider-line"></div>
+                    <div className="archive-title">
+                      <span>נשאר לשלם</span>
+                    </div>
+                  </div>
+                  {unpaidBills.map(bill => (
+                    <div key={bill.id} className={`bill-container-expandable ${expandedBillId === bill.id ? 'expanded' : ''}`}>
                       <BillCard
                         bill={bill}
                         onUpdated={handleBillUpdated}
-                        onDeleted={(id) => handleDeleteBill(id)}
+                        onDeleted={handleDeleteBill}
                         onUndoableAction={handleUndoableAction}
                         onEdit={(b) => { setEditingBill(b); openModal('new'); setExpandedBillId(null); setShowPartialInput(false); }}
                         onPress={() => toggleExpand(bill.id)}
                       />
-                      {isExpanded && (
+                      {expandedBillId === bill.id && (
                         <div className="bill-expansion-container" onClick={e => e.stopPropagation()}>
                           <div className="bill-actions-row">
                             <div className="status-toggle-container" style={{ flex: 1, marginTop: 0 }}>
@@ -527,10 +553,9 @@ export const PropertyPage: React.FC = () => {
                               ))}
                             </div>
                           </div>
-
                           {showPartialInput && (
                             <div className="partial-input-wrapper" style={{ marginBottom: '20px' }}>
-                              <div className="partial-input-row" style={{ marginBottom: 0 }}>
+                              <div className="partial-input-row">
                                 <div className={`floating-group ${partialValue ? 'has-value' : ''}`} style={{ flex: 1, margin: 0 }}>
                                   <input
                                     type="number"
@@ -555,19 +580,67 @@ export const PropertyPage: React.FC = () => {
                               )}
                             </div>
                           )}
-
                           <BillTimeline billId={bill.id} propertyId={id!} refreshKey={timelineRefreshKey} />
                         </div>
                       )}
                     </div>
-                    {isUnpaid && isNextPaid && (
-                      <div className="bills-divider">
-                        <span>שולמו</span>
-                      </div>
-                    )}
-                  </React.Fragment>
-                );
-              })}
+                  ))}
+                </>
+              )}
+
+              {/* --- שולמו --- */}
+              {Object.keys(paidBillsGrouped).length > 0 && (
+                <div className="paid-section-container">
+                  <div
+                    className="archive-header"
+                    onClick={() => setIsPaidSectionExpanded(!isPaidSectionExpanded)}
+                  >
+                    <div className="archive-divider-line"></div>
+                    <div className="archive-title" dir="rtl">
+                      <span>שולמו</span>
+                      {isPaidSectionExpanded ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                    </div>
+                    <div className="archive-divider-line"></div>
+                  </div>
+
+                  <div className={`collapsible-content ${isPaidSectionExpanded ? 'expanded' : ''}`}>
+                    {Object.keys(paidBillsGrouped)
+                      .map(Number)
+                      .sort((a, b) => b - a)
+                      .map(year => (
+                        <div key={year} className="year-group">
+                          <button
+                            className={`year-toggle-header ${expandedYears[year] ? 'expanded' : ''}`}
+                            onClick={() => toggleYear(year)}
+                          >
+                            <span className="year-label">{year}</span>
+                            <span className={`year-chevron ${expandedYears[year] ? 'open' : ''}`}>›</span>
+                          </button>
+
+                          <div className={`year-content ${expandedYears[year] ? 'expanded' : ''}`}>
+                            {paidBillsGrouped[year].map(bill => (
+                              <div key={bill.id} className={`bill-container-expandable ${expandedBillId === bill.id ? 'expanded' : ''}`}>
+                                <BillCard
+                                  bill={bill}
+                                  onUpdated={handleBillUpdated}
+                                  onDeleted={handleDeleteBill}
+                                  onUndoableAction={handleUndoableAction}
+                                  onEdit={(b) => { setEditingBill(b); openModal('new'); setExpandedBillId(null); setShowPartialInput(false); }}
+                                  onPress={() => toggleExpand(bill.id)}
+                                />
+                                {expandedBillId === bill.id && (
+                                  <div className="bill-expansion-container" onClick={e => e.stopPropagation()}>
+                                    <BillTimeline billId={bill.id} propertyId={id!} refreshKey={timelineRefreshKey} />
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

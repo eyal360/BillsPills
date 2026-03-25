@@ -245,6 +245,25 @@ billsRouter.get('/fields', requireAuth, (_req: AuthenticatedRequest, res: Respon
   res.json({ fields: EXTRACTION_FIELDS });
 });
 
+// GET /bills/unique-types
+billsRouter.get('/unique-types', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('bills')
+      .select('bill_type')
+      .eq('user_id', req.user!.id);
+    
+    if (error) throw error;
+    
+    // Extract unique types and filter out null/empty
+    const uniqueTypes = Array.from(new Set(data.map((b: any) => b.bill_type))).filter(Boolean);
+    res.json({ types: uniqueTypes });
+  } catch (err: any) {
+    logger.error('Failed to fetch unique bill types:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /bills/average-duration
 billsRouter.get('/average-duration', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {

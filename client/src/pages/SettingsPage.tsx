@@ -35,68 +35,34 @@ export const SettingsPage: React.FC = () => {
     <Layout showBack={false} title="הגדרות">
       <div className="page-content">
         <div className="settings-section card">
-          <h3 className="settings-section-title">מראה</h3>
-
-          <div className="settings-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
-            <div className="settings-row-info" style={{ width: '100%' }}>
-              <div>
-                <div className="font-semibold">ערכת נושא</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', background: 'var(--bg-input)', borderRadius: 'var(--radius-full)', padding: '6px', width: '100%', gap: '4px' }}>
+          {/* ערכת נושא */}
+          <div className="settings-row luxury-row">
+            <div className="settings-label">ערכת נושא</div>
+            <div className="theme-toggle-container">
               <button
                 onClick={() => setTheme('light')}
-                style={{
-                  flex: 1,
-                  padding: '12px 0',
-                  border: 'none',
-                  background: theme === 'light' ? 'var(--brand-primary)' : 'transparent',
-                  color: theme === 'light' ? '#fff' : 'var(--text-secondary)',
-                  borderRadius: 'var(--radius-full)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '12px'
-                }}
+                className={`theme-btn ${theme === 'light' ? 'active' : ''}`}
               >
-                <span style={{ fontSize: '1.2rem', fontWeight: 800 }}>בהיר</span>
-                <Sun size={24} strokeWidth={2.5} />
+                <Sun size={18} strokeWidth={2.5} />
+                <span>בהיר</span>
               </button>
               <button
                 onClick={() => setTheme('dark')}
-                style={{
-                  flex: 1,
-                  padding: '12px 0',
-                  border: 'none',
-                  background: theme === 'dark' ? 'var(--brand-primary)' : 'transparent',
-                  color: theme === 'dark' ? '#fff' : 'var(--text-secondary)',
-                  borderRadius: 'var(--radius-full)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '12px'
-                }}
+                className={`theme-btn ${theme === 'dark' ? 'active' : ''}`}
               >
-                <span style={{ fontSize: '1.2rem', fontWeight: 800 }}>כהה</span>
-                <Moon size={24} strokeWidth={2.5} />
+                <Moon size={18} strokeWidth={2.5} />
+                <span>כהה</span>
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="settings-section card">
-          <h3 className="settings-section-title">בינה מלאכותית</h3>
+          <div className="dropdown-divider" style={{ margin: '12px 0', opacity: 0.1 }}></div>
 
-          <div className="settings-row">
-            <div className="settings-row-info">
-              <div className="settings-row-icon">💬</div>
-              <div>
-                <div className="font-semibold">הצג בועת צ'אט</div>
-              </div>
+          {/* הצג בועת צ'אט */}
+          <div className="settings-row luxury-row">
+            <div className="settings-label">
+              <span>הצג בועת צ'אט</span>
+              <span style={{ fontSize: '1.2rem', marginRight: '8px' }}>💬</span>
             </div>
             <button
               className={`toggle ${showChatBubble ? 'toggle-on' : ''}`}
