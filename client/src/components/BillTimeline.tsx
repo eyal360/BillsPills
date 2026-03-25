@@ -28,6 +28,14 @@ const formatTs = (iso: string) => {
 export const BillTimeline: React.FC<Props> = ({ billId, propertyId, refreshKey }) => {
   const [events, setEvents] = useState<BillEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Immediate visual feedback on refresh
+  useEffect(() => {
+    if (refreshKey !== undefined && !loading) {
+      setIsRefreshing(true);
+    }
+  }, [refreshKey, loading]);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -38,6 +46,7 @@ export const BillTimeline: React.FC<Props> = ({ billId, propertyId, refreshKey }
         // failed to fetch events silently
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
       }
     };
     fetchEvents();
@@ -51,30 +60,38 @@ export const BillTimeline: React.FC<Props> = ({ billId, propertyId, refreshKey }
   );
 
   return (
-    <div className="bill-timeline-container" onClick={e => e.stopPropagation()}>
+    <div className={`bill-timeline-container ${isRefreshing ? 'refreshing' : ''}`} onClick={e => e.stopPropagation()}>
       <div className="timeline-title">היסטוריית חשבון</div>
       
-      {events.length === 0 ? (
-        <div className="timeline-empty">אין אירועים לתצוגה</div>
-      ) : (
-        <div className="timeline-list">
-          {events.map((event, i) => (
-            <div key={event.id} className="timeline-item">
-              <div className="timeline-dot-wrapper">
-                <div className="timeline-dot" />
-                {i < events.length - 1 && <div className="timeline-line" />}
-              </div>
-              <div className="timeline-content">
-                <div className="timeline-header">
-                  <span className="timeline-event-title">{event.title}</span>
-                  <span className="timeline-date">{formatTs(event.created_at)}</span>
-                </div>
-                {event.note && <div className="timeline-note">{event.note}</div>}
-              </div>
-            </div>
-          ))}
+      {isRefreshing && (
+        <div className="timeline-refresh-overlay">
+          <div className="spinner-md" />
         </div>
       )}
+
+      <div className="timeline-scroll-content">
+        {events.length === 0 ? (
+          <div className="timeline-empty">אין אירועים לתצוגה</div>
+        ) : (
+          <div className="timeline-list">
+            {events.map((event, i) => (
+              <div key={event.id} className="timeline-item">
+                <div className="timeline-dot-wrapper">
+                  <div className="timeline-dot" />
+                  {i < events.length - 1 && <div className="timeline-line" />}
+                </div>
+                <div className="timeline-content">
+                  <div className="timeline-header">
+                    <span className="timeline-event-title">{event.title}</span>
+                    <span className="timeline-date">{formatTs(event.created_at)}</span>
+                  </div>
+                  {event.note && <div className="timeline-note">{event.note}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

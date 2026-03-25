@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import type { ChatMessage } from '../types';
+import { useDialog } from '../contexts/DialogContext';
 import api from '../lib/api';
 import './ChatBubble.css';
 
@@ -10,6 +11,7 @@ export const ChatBubble: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const { confirm, alert } = useDialog();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch history natively on mount
@@ -69,13 +71,23 @@ export const ChatBubble: React.FC = () => {
   };
 
   const handleReset = async () => {
-    if (!window.confirm('האם אתה בטוח שברצונך למחוק את היסטוריית הצ\'אט?')) return;
+    const confirmed = await confirm({
+      title: 'איפוס צ\'אט',
+      message: 'האם אתה בטוח שברצונך למחוק את היסטוריית הצ\'אט? כל המידע יאבד.',
+      icon: '🗑️',
+      actions: [
+        { label: 'מחק היסטוריה', type: 'danger' },
+        { label: 'ביטול', type: 'ghost' }
+      ]
+    });
+
+    if (confirmed !== 0) return;
     setLoading(true);
     try {
       const res = await api.delete('/chat');
       setMessages([{ role: 'assistant', content: res.data.reply }]);
     } catch {
-      alert('שגיאה במחיקת הצ\'אט');
+      await alert('שגיאה', 'אירעה שגיאה במחיקת היסטוריית הצ\'אט. נסה שוב מאוחר יותר.');
     } finally {
       setLoading(false);
     }

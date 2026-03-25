@@ -54,7 +54,8 @@ import api from '../lib/api';
 import { CustomSelect } from './CustomSelect';
 import { BILL_TYPES, APP_MESSAGES, BILL_STATUSES } from '../lib/constants';
 import { PillLoader } from './PillLoader';
-import { useBillProcess, type BillProcessState } from '../contexts/BillProcessContext';
+import { useBillProcess } from '../contexts/BillProcessContext';
+import { useDialog } from '../contexts/DialogContext';
 import './AddBillModal.css';
 
 interface Props {
@@ -67,13 +68,13 @@ interface Props {
 }
 
 export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose, onAdded, allProperties = [], onRequestAddProperty }) => {
-  const { processes, activeProcessId, closeModal, setAverageDuration, addProcess, updateProcess, completeProcess, removeProcess } = useBillProcess();
+  const { processes, activeProcessId, closeModal, addProcess, updateProcess, completeProcess, removeProcess } = useBillProcess();
 
   // The process state for whatever is currently active in the modal
   const processState = (activeProcessId && activeProcessId !== 'new') ? processes[activeProcessId] : undefined;
 
   const [currentPropertyId, setCurrentPropertyId] = useState<string>(propertyId || '');
-  const [step, setStep] = useState(1); 
+  const [step, setStep] = useState(1);
 
   const [billType, setBillType] = useState(editingBill?.bill_type || '');
   const [amount, setAmount] = useState(editingBill?.amount != null ? String(editingBill.amount) : '');
@@ -96,6 +97,9 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   const [billTypeError, setBillTypeError] = useState(false);
   const [amountError, setAmountError] = useState(false);
   const [propertyError, setPropertyError] = useState(false);
+  const [partialAmountError, setPartialAmountError] = useState<string | null>(null);
+
+  const { confirm } = useDialog();
 
   const fileRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -109,7 +113,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         setAmount(data.amount != null ? String(data.amount) : '');
         setExtractedData(data.extracted_data || {});
         setEmbedding(processState.embedding || data.embedding || null);
-        
+
         if (data.billing_period_start) {
           const start = new Date(data.billing_period_start);
           const end = data.billing_period_end ? new Date(data.billing_period_end) : undefined;
@@ -118,7 +122,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
             setEndDate((end && !isNaN(end.getTime())) ? end : null);
           }
         }
-        
+
         if (data.matched_property_id) {
           setCurrentPropertyId(data.matched_property_id);
           setRecognizedPropertyName('');
@@ -127,7 +131,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
           setRecognizedPropertyName(propName ? String(propName) : '');
         }
       }
-      
+
       // If ocr results are present, skip to step 3 (or 2 if no property)
       if (processState.step === 'idle' || processState.step === 'completed') {
         if (processState.propertyId || currentPropertyId) setStep(3); else setStep(2);
@@ -177,7 +181,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
     setOcrLoading(true);
     const pid = addProcess(currentPropertyId);
     setError('');
-    
+
     try {
       updateProcess(pid, { step: 'analyzing', progress: 20 });
       const formData = new FormData();
@@ -191,7 +195,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const data = res.data;
-      
+
       setBillType(data.bill_type || '');
       setAmount(data.amount != null ? String(data.amount) : '');
       setExtractedData(data.extracted_data || {});
@@ -215,15 +219,15 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         setRecognizedPropertyName(propName ? String(propName) : '');
       }
 
-      updateProcess(pid, { 
-        step: 'idle', 
+      updateProcess(pid, {
+        step: 'idle',
         isProcessing: false, // Stop blocking the UI
-        ocrResult: data, 
+        ocrResult: data,
         embedding: data.embedding,
         actualDuration: data.processing_duration_ms,
         progress: 100
       });
-      
+
       if (!propertyId) {
         setStep(2);
       } else {
@@ -240,9 +244,9 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   };
 
   const handleSubmit = async () => {
-    if (!currentPropertyId) { 
-      setPropertyError(true); 
-      return; 
+    if (!currentPropertyId) {
+      setPropertyError(true);
+      return;
     }
 
     let hasError = false;
@@ -260,21 +264,31 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
       if (status === 'partial') {
         const partialVal = parseFloat(paidAmount) || 0;
-        
+
         if (partialVal < 0) {
-          window.alert('לא ניתן להזין סכום שלילי');
+          setPartialAmountError('לא ניתן להזין סכום שלילי');
           setLoading(false);
           return;
         }
 
         if (partialVal > totalAmount) {
-          window.alert('הסכום ששולם לא יכול להיות גדול מסכום החשבון המלא (' + totalAmount + '₪)');
+          setPartialAmountError(`הסכום לא יכול לעלות על ₪${totalAmount}`);
           setLoading(false);
           return;
         }
 
         if (partialVal === totalAmount) {
-          if (!window.confirm('הסכום שהזנת תואם לסכום החשבון המלא. האם לסמן את החשבון כשולם במלואו?')) {
+          const confirmed = await confirm({
+            title: 'תשלום מלא',
+            message: 'הסכום שהזנת תואם לסכום החשבון המלא. האם לסמן את החשבון כשולם במלואו?',
+            icon: '💰',
+            actions: [
+              { label: 'כן, שולם', type: 'primary' },
+              { label: 'ביטול', type: 'ghost' }
+            ]
+          });
+
+          if (confirmed !== 0) {
             setLoading(false);
             return;
           }
@@ -320,7 +334,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         billing_period_start: startDate?.toISOString(),
         billing_period_end: endDate?.toISOString(),
         processing_duration_ms: duration,
-        embedding: embedding 
+        embedding: embedding
       };
 
       let res;
@@ -450,17 +464,17 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                   <div className="error-text" style={{ color: '#ff4d4d', fontSize: '0.9rem', fontWeight: 600, marginBottom: '8px' }}>
                     ⚠️ זוהה נכס "{recognizedPropertyName}" אבל הוא לא קיים במערכת
                   </div>
-                  <button 
-                    className="btn btn-secondary btn-sm" 
+                  <button
+                    className="btn btn-secondary btn-sm"
                     style={{ width: '100%', border: '1px solid #ff4d4d', color: '#ff4d4d' }}
                     onClick={() => {
-                       if (activeProcessId) {
-                         updateProcess(activeProcessId, { minimized: true });
-                       }
-                       if (onRequestAddProperty) {
-                         onRequestAddProperty(recognizedPropertyName);
-                       }
-                       closeModal();
+                      if (activeProcessId) {
+                        updateProcess(activeProcessId, { minimized: true });
+                      }
+                      if (onRequestAddProperty) {
+                        onRequestAddProperty(recognizedPropertyName);
+                      }
+                      closeModal();
                     }}
                   >
                     הוסף את "{recognizedPropertyName}" כנכס חדש
@@ -537,9 +551,28 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                   </div>
 
                   {status === 'partial' && (
-                    <div className={`floating-group ${paidAmount ? 'has-value' : ''}`} style={{ marginTop: '8px' }}>
-                      <input type="number" inputMode="decimal" className="floating-input" placeholder=" " value={paidAmount} onChange={e => setPaidAmount(e.target.value)} dir="ltr" style={{ textAlign: 'left' }} />
-                      <label className="floating-label">כמה שילמת עד כה? (₪)</label>
+                    <div style={{ marginTop: '8px' }}>
+                      <div className={`floating-group ${paidAmount ? 'has-value' : ''}`} style={{ margin: 0 }}>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          className={`floating-input ${partialAmountError ? 'error' : ''}`}
+                          placeholder=" "
+                          value={paidAmount}
+                          onChange={e => {
+                            setPaidAmount(e.target.value);
+                            if (partialAmountError) setPartialAmountError(null);
+                          }}
+                          dir="ltr"
+                          style={{ textAlign: 'left' }}
+                        />
+                        <label className="floating-label">כמה שילמת? (₪)</label>
+                      </div>
+                      {partialAmountError && (
+                        <div className="field-error" style={{ marginTop: '8px', padding: '0 12px' }}>
+                          <span className="error-icon">⚠️</span> {partialAmountError}
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -566,21 +599,21 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                     </div>
                   </div>
                 ) : (
-                  <PillLoader 
-                    demo={false} 
-                    hideLabel={true} 
-                    startTime={processes[activeProcessId!]?.startTime} 
-                    averageDuration={processes[activeProcessId!]?.averageDuration} 
+                  <PillLoader
+                    demo={false}
+                    hideLabel={true}
+                    startTime={processes[activeProcessId!]?.startTime}
+                    averageDuration={processes[activeProcessId!]?.averageDuration}
                     isCompleting={processes[activeProcessId!]?.isCompleting}
                   />
                 )}
               </div>
               <div className="dynamic-process-button" style={
-                (processes[activeProcessId!]?.isCompleting || (loading && !ocrLoading && !error)) 
-                  ? { borderColor: '#4CAF50', color: '#4CAF50', boxShadow: '0 15px 40px rgba(76, 175, 80, 0.25)' } 
+                (processes[activeProcessId!]?.isCompleting || (loading && !ocrLoading && !error))
+                  ? { borderColor: '#4CAF50', color: '#4CAF50', boxShadow: '0 15px 40px rgba(76, 175, 80, 0.25)' }
                   : {}
               }>
-                 {(processes[activeProcessId!]?.isCompleting || (loading && !ocrLoading && !error)) ? 'נשמר בהצלחה!' : getDynamicLabel()}
+                {(processes[activeProcessId!]?.isCompleting || (loading && !ocrLoading && !error)) ? 'נשמר בהצלחה!' : getDynamicLabel()}
               </div>
               {activeProcessId && processes[activeProcessId] && !processes[activeProcessId].isCompleting && !loading && (
                 <button className="btn-minimize-inner" onClick={() => updateProcess(activeProcessId, { minimized: true })}>

@@ -11,6 +11,7 @@ import { AdminUserView } from './pages/AdminUserView';
 import { ChatBubble } from './components/ChatBubble';
 import { BillProcessProvider } from './contexts/BillProcessContext';
 import { FloatingProcessManager } from './components/FloatingProcessManager';
+import { DialogProvider } from './contexts/DialogContext';
 
 // Protected Route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({ children, adminOnly }) => {
@@ -78,13 +79,15 @@ const AppRoutes: React.FC = () => {
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <SettingsProvider>
-          <BillProcessProvider>
-            <AppRoutes />
-          </BillProcessProvider>
-        </SettingsProvider>
-      </AuthProvider>
+      <DialogProvider>
+        <AuthProvider>
+          <SettingsProvider>
+            <BillProcessProvider>
+              <AppRoutes />
+            </BillProcessProvider>
+          </SettingsProvider>
+        </AuthProvider>
+      </DialogProvider>
     </BrowserRouter>
   );
 };

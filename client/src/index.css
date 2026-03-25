@@ -452,6 +452,11 @@ p {
 .modal-title {
   font-size: 1.25rem;
   font-weight: 700;
+  color: var(--text-primary);
+}
+
+h3.text-center {
+  color: var(--text-primary);
 }
 
 .modal-close {
@@ -460,7 +465,7 @@ p {
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--bg-input);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;

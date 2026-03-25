@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useDialog } from '../contexts/DialogContext';
 import { PillIcon } from '../components/PillIcon';
 import { Sun, Moon } from 'lucide-react';
 import './SettingsPage.css';
@@ -10,10 +11,21 @@ import './SettingsPage.css';
 export const SettingsPage: React.FC = () => {
   const { theme, setTheme, showChatBubble, toggleChatBubble } = useSettings();
   const { logout } = useAuth();
+  const { confirm } = useDialog();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    if (window.confirm('האם אתה בטוח שברצונך להתנתק?')) {
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: 'התנתקות מהמערכת',
+      message: 'האם אתה בטוח שברצונך להתנתק? נתגעגע!',
+      icon: '👋',
+      actions: [
+        { label: 'התנתק', type: 'danger' },
+        { label: 'ביטול', type: 'ghost' }
+      ]
+    });
+
+    if (confirmed === 0) {
       logout();
       navigate('/login');
     }

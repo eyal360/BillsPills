@@ -116,3 +116,43 @@
   display: inline-block;
   margin-left: 8px;
 }
+
+.spinner-md {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--brand-primary);
+  border-radius: 50%;
+  animation: rotate 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.timeline-refresh-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.timeline-scroll-content {
+  transition: filter 0.3s ease;
+}
+
+.bill-timeline-container.refreshing .timeline-scroll-content {
+  filter: blur(2px) grayscale(0.5);
+  pointer-events: none;
+}

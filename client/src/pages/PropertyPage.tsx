@@ -13,6 +13,7 @@ import { PieChart, MoreVertical, Edit, Archive, Trash2, ArchiveRestore } from 'l
 import { useBillProcess } from '../contexts/BillProcessContext';
 import { AddPropertyModal } from '../components/AddPropertyModal';
 import { useNavigate } from 'react-router-dom';
+import { useDialog } from '../contexts/DialogContext';
 import './PropertyPage.css';
 
 interface UndoState {
@@ -38,7 +39,8 @@ export const PropertyPage: React.FC = () => {
   const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [showEditPropertyModal, setShowEditPropertyModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [partialError, setPartialError] = useState<string | null>(null);
+  const { confirm } = useDialog();
   const navigate = useNavigate();
 
   // Undo Toast state
@@ -126,11 +128,19 @@ export const PropertyPage: React.FC = () => {
     if (!property) return;
     const isArchiving = !property.is_archived;
     
-    const confirmMsg = isArchiving 
-      ? 'האם בטוח? פעולה זו תהפוך את הנכס ללא פעיל, אך כל המידע יישמר ותוכל לבטל זאת בכל עת.'
-      : 'האם ברצונך להחזיר את הנכס לארכיון הפעיל?';
+    const confirmResult = await confirm({
+      title: isArchiving ? 'העברת נכס לארכיון' : 'ביטול ארכיון',
+      message: isArchiving 
+        ? 'האם בטוח? פעולה זו תהפוך את הנכס ללא פעיל, אך כל המידע יישמר ותוכל לבטל זאת בכל עת.'
+        : 'האם ברצונך להחזיר את הנכס לארכיון הפעיל?',
+      icon: isArchiving ? '📦' : '🏠',
+      actions: [
+        { label: isArchiving ? 'העבר לארכיון' : 'ביטול ארכיון', type: 'primary' },
+        { label: 'ביטול', type: 'ghost' }
+      ]
+    });
     
-    if (!window.confirm(confirmMsg)) return;
+    if (confirmResult !== 0) return;
 
     try {
       const res = await api.put(`/properties/${property.id}`, {
@@ -144,11 +154,6 @@ export const PropertyPage: React.FC = () => {
     }
   };
 
-  const handleDeletePropertyAction = () => {
-    setShowDeleteConfirm(true);
-    setShowMenu(false);
-  };
-
   const executeDeleteProperty = async () => {
     if (!property) return;
     try {
@@ -156,6 +161,33 @@ export const PropertyPage: React.FC = () => {
       navigate('/');
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDeletePropertyAction = async () => {
+    setShowMenu(false);
+    
+    const result = await confirm({
+      title: 'מחיקת נכס',
+      message: (
+        <>
+          מחיקת <strong>{property?.name}</strong> תמחוק לצמיתות את כל היסטוריית החשבונות והתשלומים שלו.
+          <br /><br />
+          מומלץ להעביר לארכיון במקום - כך המידע יישמר אך הנכס לא יופיע ברשימה הפעילה.
+        </>
+      ),
+      icon: '⚠️',
+      actions: [
+        { label: 'העבר לארכיון (מומלץ)', type: 'primary' },
+        { label: 'מחק לצמיתות', type: 'danger' },
+        { label: 'ביטול', type: 'ghost' }
+      ]
+    });
+
+    if (result === 0) {
+      handleArchiveToggle();
+    } else if (result === 1) {
+      executeDeleteProperty();
     }
   };
 
@@ -183,7 +215,17 @@ export const PropertyPage: React.FC = () => {
     if (newStatus === 'paid') {
       // Small timeout to let the UI reflect the change before confirm() blocks
       setTimeout(async () => {
-        if (!window.confirm('האם אתה בטוח שברצונך לסמן את החשבון כשולם במלואו?')) {
+        const confirmed = await confirm({
+          title: 'סגירת חשבון',
+          message: 'האם אתה בטוח שברצונך לסמן את החשבון כשולם במלואו?',
+          icon: '✅',
+          actions: [
+            { label: 'כן, שולם', type: 'primary' },
+            { label: 'ביטול', type: 'ghost' }
+          ]
+        });
+
+        if (confirmed !== 0) {
           setSelectedStatus(bill.status);
           return;
         }
@@ -214,7 +256,17 @@ export const PropertyPage: React.FC = () => {
     } else {
       // waiting status - revert
       if ((bill.paid_amount || 0) > 0) {
-        if (!window.confirm('האם אתה בטוח? פעולה זו תבטל את כל התשלומים שבוצעו ותחזיר את היתרה למלואה.')) {
+        const confirmed = await confirm({
+          title: 'ביטול תשלום',
+          message: 'האם אתה בטוח? פעולה זו תבטל את כל התשלומים שבוצעו ותחזיר את היתרה למלואה.',
+          icon: '🔄',
+          actions: [
+            { label: 'בטל תשלום', type: 'danger' },
+            { label: 'לא, השאר ככה', type: 'ghost' }
+          ]
+        });
+
+        if (confirmed !== 0) {
           setSelectedStatus(bill.status);
           return;
         }
@@ -242,25 +294,38 @@ export const PropertyPage: React.FC = () => {
   };
 
   const handleUpdatePartial = async (bill: Bill) => {
-    const amountVal = parseFloat(partialValue);
-    if (isNaN(amountVal)) return;
+    const newPaymentAmount = parseFloat(partialValue);
+    if (isNaN(newPaymentAmount)) return;
 
-    if (amountVal < 0) {
-      window.alert('לא ניתן להזין סכום שלילי');
+    if (newPaymentAmount <= 0) {
+      setPartialError('נא להזין סכום חיובי');
       return;
     }
 
+    const currentPaid = bill.paid_amount || 0;
     const totalBillAmount = bill.amount || 0;
-    if (amountVal > totalBillAmount) {
-      window.alert('הסכום ששולם לא יכול להיות גדול מסכום החשבון המלא (' + totalBillAmount + '₪)');
+    const newTotalPaid = currentPaid + newPaymentAmount;
+
+    if (newTotalPaid > totalBillAmount + 0.01) { // 0.01 for float precision
+      setPartialError(`הסכום הכולל (₪${newTotalPaid.toFixed(1)}) לא יכול לעלות על סכום החשבון (₪${totalBillAmount})`);
       return;
     }
+
+    setPartialError(null);
 
     let statusToSave: 'partial' | 'paid' = 'partial';
-    let finalAmountVal = amountVal;
+    if (Math.abs(newTotalPaid - totalBillAmount) < 0.01) {
+      const confirmed = await confirm({
+        title: 'תשלום מלא',
+        message: 'הסכום ששילמת עד כה משלים את החשבון במלואו. האם לסמן את החשבון כשולם?',
+        icon: '💰',
+        actions: [
+          { label: 'כן, סמן כשולם', type: 'primary' },
+          { label: 'לא, חזור', type: 'ghost' }
+        ]
+      });
 
-    if (amountVal === totalBillAmount) {
-      if (!window.confirm('הסכום שהזנת תואם לסכום החשבון המלא. האם לסמן את החשבון כשולם במלואו?')) {
+      if (confirmed !== 0) {
         return;
       }
       statusToSave = 'paid';
@@ -270,19 +335,20 @@ export const PropertyPage: React.FC = () => {
       const res = await api.put(`/bills/${bill.id}`, { 
         ...bill, 
         status: statusToSave, 
-        paid_amount: finalAmountVal 
+        paid_amount: newTotalPaid 
       });
 
       // Add timeline event
       await api.post(`/properties/${id}/bills/${bill.id}/events`, {
         title: statusToSave === 'paid' ? 'החשבון שולם במלואו' : 'שולם חלקית',
         note: statusToSave === 'paid' 
-          ? `החשבון סולק במלואו (₪${finalAmountVal})`
-          : `שולם: ₪${amountVal} | נשאר: ₪${(totalBillAmount - amountVal).toFixed(1)}`
+          ? `החשבון סולק במלואו (₪${newTotalPaid.toFixed(1)})`
+          : `שולם עכשיו: ₪${newPaymentAmount} | סה"כ שולם: ₪${newTotalPaid.toFixed(1)} | נשאר: ₪${(totalBillAmount - newTotalPaid).toFixed(1)}`
       });
 
       handleBillUpdated(res.data);
       setTimelineRefreshKey(prev => prev + 1); // Refresh timeline
+      setPartialValue('');
       setShowPartialInput(false);
     } catch (err) {
       console.error('Partial payment error:', err);
@@ -290,7 +356,17 @@ export const PropertyPage: React.FC = () => {
   };
 
   const handleDeleteBill = async (billId: string) => {
-    if (!window.confirm('האם אתה בטוח שברצונך למחוק את החשבון?')) return;
+    const confirmed = await confirm({
+      title: 'מחיקת חשבון',
+      message: 'האם אתה בטוח שברצונך למחוק את החשבון?',
+      icon: '🗑️',
+      actions: [
+        { label: 'מחק חשבון', type: 'danger' },
+        { label: 'ביטול', type: 'ghost' }
+      ]
+    });
+
+    if (confirmed !== 0) return;
     try {
       await api.delete(`/bills/${billId}`);
       setBills(prev => prev.filter(b => b.id !== billId));
@@ -313,9 +389,11 @@ export const PropertyPage: React.FC = () => {
       setExpandedBillId(null);
       setShowPartialInput(false);
       setSelectedStatus(null);
+      setPartialError(null);
     } else {
       setExpandedBillId(billId);
       setShowPartialInput(false);
+      setPartialError(null);
       const b = bills.find(x => x.id === billId);
       setSelectedStatus(b?.status || 'waiting');
     }
@@ -451,20 +529,30 @@ export const PropertyPage: React.FC = () => {
                           </div>
 
                           {showPartialInput && (
-                            <div className="partial-input-row">
-                              <div className={`floating-group ${partialValue ? 'has-value' : ''}`} style={{ flex: 1, margin: 0 }}>
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  className="floating-input"
-                                  placeholder=" "
-                                  value={partialValue}
-                                  onChange={e => setPartialValue(e.target.value)}
-                                  dir="rtl"
-                                />
-                                <label className="floating-label">כמה שילמת עד כה? (₪)</label>
+                            <div className="partial-input-wrapper" style={{ marginBottom: '20px' }}>
+                              <div className="partial-input-row" style={{ marginBottom: 0 }}>
+                                <div className={`floating-group ${partialValue ? 'has-value' : ''}`} style={{ flex: 1, margin: 0 }}>
+                                  <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    className={`floating-input ${partialError ? 'error' : ''}`}
+                                    placeholder=" "
+                                    value={partialValue}
+                                    onChange={e => {
+                                      setPartialValue(e.target.value);
+                                      if (partialError) setPartialError(null);
+                                    }}
+                                    dir="rtl"
+                                  />
+                                  <label className="floating-label">סכום לתשלום עכשיו (₪)</label>
+                                </div>
+                                <button className="btn btn-primary btn-sm" onClick={() => handleUpdatePartial(bill)}>עדכן</button>
                               </div>
-                              <button className="btn btn-primary btn-sm" onClick={() => handleUpdatePartial(bill)}>עדכן</button>
+                              {partialError && (
+                                <div className="field-error" style={{ marginTop: '8px', padding: '0 12px' }}>
+                                  <span className="error-icon">⚠️</span> {partialError}
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -526,46 +614,6 @@ export const PropertyPage: React.FC = () => {
           }}
           editingProperty={property}
         />
-      )}
-
-      {showDeleteConfirm && (
-        <div className="modal-backdrop" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="modal delete-confirm-modal">
-            <div className="modal-header">
-              <h2 className="modal-title">מחיקת נכס</h2>
-              <button className="modal-close" onClick={() => setShowDeleteConfirm(false)}>✕</button>
-            </div>
-            <div className="modal-body text-center">
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
-              <p className="mb-lg">
-                מחיקת <strong>{property?.name}</strong> תמחוק לצמיתות את כל היסטוריית החשבונות והתשלומים שלו.
-                <br /><br />
-                מומלץ להעביר לארכיון במקום - כך המידע יישמר אך הנכס לא יופיע ברשימה הפעילה.
-              </p>
-              
-              <div className="delete-modal-actions">
-                <button 
-                  className="btn btn-primary btn-full mb-md" 
-                  onClick={() => { handleArchiveToggle(); setShowDeleteConfirm(false); }}
-                >
-                  העבר לארכיון (מומלץ)
-                </button>
-                <button 
-                  className="btn btn-danger btn-full mb-md" 
-                  onClick={executeDeleteProperty}
-                >
-                  מחק לצמיתות
-                </button>
-                <button 
-                  className="btn btn-ghost btn-full" 
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  ביטול
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </Layout>
   );
