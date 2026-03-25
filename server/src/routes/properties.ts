@@ -167,6 +167,7 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
       status: status || 'waiting',
       image_url,
       extracted_data: extracted_data || {},
+      notes: req.body.notes,
       billing_period_start,
       billing_period_end,
       processing_duration_ms

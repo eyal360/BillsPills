@@ -31,6 +31,7 @@ export interface Bill {
   extracted_data: Record<string, unknown>;
   billing_period_start?: string;
   billing_period_end?: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }

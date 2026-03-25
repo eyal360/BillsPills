@@ -540,6 +540,12 @@ export const PropertyPage: React.FC = () => {
                       />
                       {expandedBillId === bill.id && (
                         <div className="bill-expansion-container" onClick={e => e.stopPropagation()}>
+                          {bill.notes && (
+                            <div className="bill-notes-display" style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border-subtle)', fontSize: '0.9rem', color: 'var(--text-secondary)', position: 'relative', overflow: 'hidden' }}>
+                              <div style={{ fontWeight: 600, color: 'var(--brand-primary)', marginBottom: '4px', fontSize: '0.8rem', opacity: 0.8 }}>הערה:</div>
+                              <div style={{ lineHeight: '1.4' }}>{bill.notes}</div>
+                            </div>
+                          )}
                           <div className="bill-actions-row">
                             <div className="status-toggle-container" style={{ flex: 1, marginTop: 0 }}>
                               {(['paid' as const, 'partial' as const, 'waiting' as const]).map(s => (
@@ -630,6 +636,12 @@ export const PropertyPage: React.FC = () => {
                                 />
                                 {expandedBillId === bill.id && (
                                   <div className="bill-expansion-container" onClick={e => e.stopPropagation()}>
+                                    {bill.notes && (
+                                      <div className="bill-notes-display" style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border-subtle)', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                        <div style={{ fontWeight: 600, color: 'var(--brand-primary)', marginBottom: '4px', fontSize: '0.8rem', opacity: 0.8 }}>הערה:</div>
+                                        <div style={{ lineHeight: '1.4' }}>{bill.notes}</div>
+                                      </div>
+                                    )}
                                     <BillTimeline billId={bill.id} propertyId={id!} refreshKey={timelineRefreshKey} />
                                   </div>
                                 )}

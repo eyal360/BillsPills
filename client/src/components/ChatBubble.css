@@ -59,6 +59,7 @@
   padding: var(--space-md);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 .chat-header-info {
@@ -102,10 +103,30 @@
 }
 
 .chat-bubble-msg {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 18px;
   font-size: 0.9rem;
-  line-height: 1.5;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-bubble-msg p {
+  margin: 0;
+}
+
+.chat-bubble-msg p + p {
+  margin-top: 4px;
+}
+
+.chat-bubble-msg ul, .chat-bubble-msg ol {
+  margin: 4px 0;
+  padding-right: 20px;
+  text-align: right;
+}
+
+.chat-bubble-msg li {
+  margin-bottom: 2px;
 }
 
 .chat-message-user .chat-bubble-msg {
@@ -138,8 +159,13 @@
   animation: pulse 1.2s ease-in-out infinite;
 }
 
-.chat-typing span:nth-child(2) { animation-delay: 0.2s; }
-.chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+.chat-typing span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.chat-typing span:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 .chat-input-row {
   display: flex;
@@ -160,4 +186,53 @@
   border-radius: var(--radius-full);
   padding: 10px 16px;
   flex-shrink: 0;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.reset-chat-btn {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.reset-chat-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.2);
+  transform: translateY(-1px);
+}
+
+.chat-content-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.4s ease;
+}
+
+.chat-content-wrap.grayed-out {
+  filter: blur(4px) grayscale(0.5);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.chat-reset-overlay {
+  top: 60px !important;
+  background: rgba(var(--bg-modal-rgb, 30, 30, 30), 0.6) !important;
+}
+
+.chat-reset-overlay .processing-content {
+  gap: 1rem;
 }

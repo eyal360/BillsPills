@@ -100,6 +100,9 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   const [partialAmountError, setPartialAmountError] = useState<string | null>(null);
   const [ocrUsed, setOcrUsed] = useState(false);
   const [ocrFields, setOcrFields] = useState<Set<string>>(new Set());
+  const [note, setNote] = useState('');
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [tempNote, setTempNote] = useState('');
   const [customBillTypes, setCustomBillTypes] = useState<string[]>([]);
 
   const { confirm, prompt, alert } = useDialog();
@@ -150,6 +153,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         const data = processState.ocrResult;
         setBillType(data.bill_type || '');
         setAmount(data.amount != null ? String(data.amount) : '');
+        setNote(data.notes || ''); // Set note from OCR result
         setExtractedData(data.extracted_data || {});
         setEmbedding(processState.embedding || data.embedding || null);
 
@@ -191,6 +195,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setError('');
       setOcrUsed(false);
       setOcrFields(new Set());
+      setNote(''); // Reset note
     }
   }, [activeProcessId]); // Only trigger on modal opening/switching
 
@@ -253,6 +258,13 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         fields.add('amount');
       } else {
         setAmount('');
+      }
+
+      if (data.notes) { // Set note from OCR result
+        setNote(data.notes);
+        fields.add('notes');
+      } else {
+        setNote('');
       }
 
       setExtractedData(data.extracted_data || {});
@@ -402,7 +414,8 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
         billing_period_start: startDate?.toISOString(),
         billing_period_end: endDate?.toISOString(),
         processing_duration_ms: duration,
-        embedding: embedding
+        embedding: embedding,
+        notes: note // Pass notes to the payload
       };
 
       let res;
@@ -606,9 +619,33 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                 </ConfigProvider>
               </div>
 
-              <div className={`floating-group ${amount ? 'has-value' : ''}`}>
-                <input ref={amountRef} type="number" inputMode="decimal" className={`floating-input ${amountError ? 'error' : ''} ${ocrUsed && !amount && !ocrFields.has('amount') ? 'warning' : ''}`} placeholder=" " value={amount} onChange={e => { setAmount(e.target.value); if (amountError) setAmountError(false); }} dir="rtl" style={{ textAlign: 'right' }} />
-                <label className="floating-label">סכום חשבון *</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <div className={`floating-group ${amount ? 'has-value' : ''}`} style={{ flex: 1 }}>
+                  <input ref={amountRef} type="number" inputMode="decimal" className={`floating-input ${amountError ? 'error' : ''} ${ocrUsed && !amount && !ocrFields.has('amount') ? 'warning' : ''}`} placeholder=" " value={amount} onChange={e => { setAmount(e.target.value); if (amountError) setAmountError(false); }} dir="rtl" style={{ textAlign: 'right' }} />
+                  <label className="floating-label">סכום חשבון *</label>
+                </div>
+                <button 
+                  className={`btn note-trigger-btn ${note ? 'has-note' : ''}`}
+                  onClick={() => { setTempNote(note); setShowNoteModal(true); }}
+                  style={{ 
+                    height: '56px', 
+                    padding: '0 12px', 
+                    background: note ? 'var(--brand-primary)' : 'rgba(255, 255, 255, 0.05)',
+                    color: note ? 'white' : 'var(--text-secondary)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.8rem',
+                    transition: 'all 0.2s ease',
+                    minWidth: '70px'
+                  }}
+                >
+                  <span style={{ fontSize: '1.2rem', marginBottom: '2px' }}>📝</span>
+                  {note ? 'ערוך הערה' : 'הוסף הערה'}
+                </button>
               </div>
 
               {!editingBill && (
@@ -697,7 +734,35 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
               )}
             </div>
           </div>
-        )}
+          )}
+          {showNoteModal && (
+            <div className="processing-overlay" style={{ zIndex: 10001 }} onClick={() => setShowNoteModal(false)}>
+              <div className="processing-content card" style={{ maxWidth: '300px', width: '90%', padding: '20px' }} onClick={e => e.stopPropagation()}>
+                <h4 style={{ marginBottom: '16px', textAlign: 'center' }}>📝 הוספת הערה לחשבון</h4>
+                <textarea 
+                  className="floating-input"
+                  style={{ 
+                    height: '100px', 
+                    width: '100%', 
+                    borderRadius: '8px', 
+                    padding: '12px',
+                    marginBottom: '16px',
+                    borderColor: 'var(--border-subtle)',
+                    fontSize: '0.95rem'
+                  }}
+                  placeholder="כתוב כאן הערה..."
+                  value={tempNote}
+                  onChange={e => setTempNote(e.target.value)}
+                  autoFocus
+                  dir="rtl"
+                />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn btn-primary btn-full" onClick={() => { setNote(tempNote); setShowNoteModal(false); }}>שמור הערה</button>
+                  <button className="btn btn-ghost btn-full" onClick={() => setShowNoteModal(false)}>ביטול</button>
+                </div>
+              </div>
+            </div>
+          )}
       </div>
     </div>
   );
