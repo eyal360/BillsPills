@@ -31,13 +31,34 @@ chatRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: Respons
 
       contextData = `נתוני מערכת כלל (מנהל): ${JSON.stringify(allBills)}`;
     } else {
-      // Users see only their data
-      const { data: properties } = await supabase
-        .from('properties')
-        .select('*, bills(*)')
-        .eq('user_id', req.user!.id);
+      // Users see only their data (owned and shared)
+      const userEmail = req.user!.email?.toLowerCase();
+      
+      const [ownedRes, sharesRes] = await Promise.all([
+        supabase.from('properties').select('*, bills(*)').eq('user_id', req.user!.id),
+        supabase.from('property_shares').select('property_id').eq('email', userEmail)
+      ]);
 
-      contextData = `נתוני הנכסים שלי: ${JSON.stringify(properties)}`;
+      const sharedPropertyIds = sharesRes.data?.map((s: any) => s.property_id) || [];
+      let allAccessibleProperties = ownedRes.data || [];
+
+      if (sharedPropertyIds.length > 0) {
+        const { data: sharedProps } = await supabase
+          .from('properties')
+          .select('*, bills(*)')
+          .in('id', sharedPropertyIds);
+        
+        if (sharedProps) {
+          const ownedIds = new Set(allAccessibleProperties.map((p: any) => p.id));
+          const filteredShared = sharedProps.filter((p: any) => !ownedIds.has(p.id));
+          allAccessibleProperties = [...allAccessibleProperties, ...filteredShared];
+        }
+      }
+
+      contextData = `נתוני הנכסים שלי (כולל משותפים): ${JSON.stringify(allAccessibleProperties)}`;
+      
+      // Store accessible IDs for RAG filter
+      (req as any).accessiblePropertyIds = allAccessibleProperties.map((p: any) => p.id);
     }
 
     // --- RAG (Retrieval-Augmented Generation) ---
@@ -53,12 +74,18 @@ chatRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: Respons
         });
         const queryEmbedding = embedResult.embedding.values;
 
-        // Perform similarity search
-        const { data: matchedBills } = await supabase.rpc('match_bill_documents', {
+        // Perform similarity search using v2 (by property_ids)
+        const accessiblePropertyIds = (req as any).accessiblePropertyIds || [];
+        
+        if (accessiblePropertyIds.length === 0) {
+          throw new Error('No accessible properties found for RAG');
+        }
+
+        const { data: matchedBills } = await supabase.rpc('match_bill_documents_v2', {
           query_embedding: queryEmbedding,
           match_threshold: 0.3,
           match_count: 5,
-          p_user_id: req.user!.id
+          p_property_ids: accessiblePropertyIds
         });
 
         if (matchedBills && matchedBills.length > 0) {

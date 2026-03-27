@@ -14,6 +14,19 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+logger.info(`Starting server in ${process.env.NODE_ENV} mode...`);
+
+// Global error handlers
+process.on('uncaughtException', (err) => {
+  logger.error('CRITICAL: Uncaught Exception!', err);
+  // Give it a bit of time to log before exiting
+  setTimeout(() => process.exit(1), 100);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // Middleware
 app.use(cors());
 

@@ -28,36 +28,150 @@ const EXTRACTION_FIELDS = [
   'notes',
 ];
 
-// PUT update bill
-billsRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { bill_type, amount, paid_amount, status, extracted_data, billing_period_start, billing_period_end, notes } = req.body;
-  logger.info('Updating bill:', { id: req.params.id, body: req.body });
+// GET single bill
+billsRouter.get('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userEmail = req.user!.email?.toLowerCase();
+  
+  const { data: bill, error: billError } = await supabase
+    .from('bills')
+    .select('*')
+    .eq('id', req.params.id)
+    .single();
 
-  // Verify ownership through property
-  const { data: bill } = await supabase
+  if (billError || !bill) {
+    res.status(404).json({ error: 'Bill not found' });
+    return;
+  }
+
+  // Verify access through property ownership or share
+  const { data: property, error: propError } = await supabase
+    .from('properties')
+    .select('user_id')
+    .eq('id', bill.property_id)
+    .single();
+
+  if (propError || !property) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
+
+  if (property.user_id !== req.user!.id) {
+    const { data: share } = await supabase
+      .from('property_shares')
+      .select('id')
+      .eq('property_id', bill.property_id)
+      .eq('email', userEmail)
+      .single();
+
+    if (!share) {
+      res.status(403).json({ error: 'Unauthorized property access' });
+      return;
+    }
+  }
+
+  res.json(bill);
+});
+
+// GET /api/bills/:id/events (Redundant with properties route but good for direct bill access)
+billsRouter.get('/:id/events', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userEmail = req.user!.email?.toLowerCase();
+  
+  const { data: bill, error: billError } = await supabase
     .from('bills')
     .select('property_id')
     .eq('id', req.params.id)
     .single();
 
-  if (!bill) {
+  if (billError || !bill) {
     res.status(404).json({ error: 'Bill not found' });
     return;
   }
 
+  // Verify property access
   const { data: property } = await supabase
     .from('properties')
-    .select('id')
+    .select('user_id')
     .eq('id', bill.property_id)
-    .eq('user_id', req.user!.id)
     .single();
 
   if (!property) {
-    res.status(403).json({ error: 'Unauthorized' });
+    res.status(404).json({ error: 'Property not found' });
     return;
   }
 
-  const { data, error } = await supabase
+  if (property.user_id !== req.user!.id) {
+    const { data: share } = await supabase
+      .from('property_shares')
+      .select('id')
+      .eq('property_id', bill.property_id)
+      .eq('email', userEmail)
+      .single();
+
+    if (!share) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+  }
+
+  const { data: events, error } = await supabase
+    .from('bill_events')
+    .select('*')
+    .eq('bill_id', req.params.id)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.json(events);
+});
+
+billsRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { bill_type, amount, paid_amount, status, extracted_data, billing_period_start, billing_period_end, notes } = req.body;
+  const userEmail = req.user!.email?.toLowerCase();
+  logger.info('Updating bill:', { id: req.params.id, body: req.body });
+
+  // 1. Fetch current bill (including paid_amount for delta calculation)
+  const { data: oldBill } = await supabase
+    .from('bills')
+    .select('property_id, status, amount, bill_type, paid_amount')
+    .eq('id', req.params.id)
+    .single();
+
+  if (!oldBill) {
+    res.status(404).json({ error: 'Bill not found' });
+    return;
+  }
+
+  // 2. Verify access (owner OR share)
+  const { data: property } = await supabase
+    .from('properties')
+    .select('user_id')
+    .eq('id', oldBill.property_id)
+    .single();
+
+  if (!property) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
+
+  if (property.user_id !== req.user!.id) {
+    const { data: share } = await supabase
+      .from('property_shares')
+      .select('id')
+      .eq('property_id', oldBill.property_id)
+      .eq('email', userEmail)
+      .single();
+
+    if (!share) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+  }
+
+  // 3. Update the bill
+  const { data: updatedBill, error: updateError } = await supabase
     .from('bills')
     .update({ 
       bill_type, 
@@ -74,16 +188,60 @@ billsRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Resp
     .select()
     .single();
 
-  if (error) {
-    res.status(500).json({ error: error.message });
+  if (updateError) {
+    res.status(500).json({ error: updateError.message });
     return;
   }
 
-  res.json(data);
+  // 4. Create a descriptive event for the update
+  let eventTitle = 'פרטי התשלום עודכנו';
+  let eventNote = '';
+
+  const newStatus = status || updatedBill.status;
+  const newAmount = amount !== undefined ? amount : updatedBill.amount;
+  const newPaidAmount = paid_amount !== undefined ? paid_amount : updatedBill.paid_amount;
+  const oldPaidAmount = oldBill.paid_amount || 0;
+
+  if (newStatus !== oldBill.status) {
+    if (newStatus === 'paid') {
+      eventTitle = 'שולם במלואו';
+      eventNote = `סה"כ שולם: ₪${newAmount}`;
+    } else if (newStatus === 'partial') {
+      const addedNow = (newPaidAmount - oldPaidAmount).toFixed(1);
+      const remaining = (newAmount - newPaidAmount).toFixed(1);
+      eventTitle = 'שולם חלקית';
+      eventNote = `שולם עכשיו: ₪${addedNow} | סה"כ שולם: ₪${newPaidAmount} | נשאר: ₪${remaining}`;
+    } else {
+      eventTitle = `סטטוס התשלום שונה: ${newStatus}`;
+    }
+  } else if (newPaidAmount !== oldPaidAmount) {
+    // Paid amount changed but status stayed same (likely another partial payment)
+    const addedNow = (newPaidAmount - oldPaidAmount).toFixed(1);
+    const remaining = (newAmount - newPaidAmount).toFixed(1);
+    eventTitle = 'שולם חלקית';
+    eventNote = `שולם עכשיו: ₪${addedNow} | סה"כ שולם: ₪${newPaidAmount} | נשאר: ₪${remaining}`;
+  } else if (newAmount !== oldBill.amount) {
+    eventTitle = `סכום התשלום עודכן: ₪${newAmount}`;
+  } else if (bill_type && bill_type !== oldBill.bill_type) {
+    eventTitle = `סוג התשלום שונה: ${bill_type}`;
+  }
+
+  // Note: We deliberately exclude the general bill 'notes' from the timeline record 
+  // to avoid duplication, as requested.
+  await supabase.from('bill_events').insert({
+    bill_id: req.params.id,
+    user_id: req.user!.id,
+    title: eventTitle,
+    note: eventNote, // Only payment-specific data here
+  });
+
+  res.json(updatedBill);
 });
 
 // DELETE bill
 billsRouter.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userEmail = req.user!.email?.toLowerCase();
+
   const { data: bill } = await supabase
     .from('bills')
     .select('property_id')
@@ -95,16 +253,30 @@ billsRouter.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: R
     return;
   }
 
+  // Verify access (owner OR share)
   const { data: property } = await supabase
     .from('properties')
-    .select('id')
+    .select('user_id')
     .eq('id', bill.property_id)
-    .eq('user_id', req.user!.id)
     .single();
 
   if (!property) {
-    res.status(403).json({ error: 'Unauthorized' });
+    res.status(404).json({ error: 'Property not found' });
     return;
+  }
+
+  if (property.user_id !== req.user!.id) {
+    const { data: share } = await supabase
+      .from('property_shares')
+      .select('id')
+      .eq('property_id', bill.property_id)
+      .eq('email', userEmail)
+      .single();
+
+    if (!share) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
   }
 
   const { error } = await supabase.from('bills').delete().eq('id', req.params.id);
@@ -246,13 +418,30 @@ billsRouter.get('/fields', requireAuth, (_req: AuthenticatedRequest, res: Respon
   res.json({ fields: EXTRACTION_FIELDS });
 });
 
-// GET /bills/unique-types
+// GET /bills/unique-types (Include shared properties)
 billsRouter.get('/unique-types', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
+    const userEmail = req.user!.email?.toLowerCase();
+
+    // 1. Get properties the user owns or is shared with
+    const { data: owned } = await supabase.from('properties').select('id').eq('user_id', req.user!.id);
+    const { data: shared } = await supabase.from('property_shares').select('property_id').eq('email', userEmail);
+    
+    const propIds = [
+      ...(owned?.map((p: { id: string }) => p.id) || []),
+      ...(shared?.map((s: { property_id: string }) => s.property_id) || [])
+    ];
+
+    if (propIds.length === 0) {
+      res.json({ types: [] });
+      return;
+    }
+
+    // 2. Fetch unique types for those properties
     const { data, error } = await supabase
       .from('bills')
       .select('bill_type')
-      .eq('user_id', req.user!.id);
+      .in('property_id', propIds);
     
     if (error) throw error;
     
@@ -265,13 +454,30 @@ billsRouter.get('/unique-types', requireAuth, async (req: AuthenticatedRequest, 
   }
 });
 
-// GET /bills/average-duration
+// GET /bills/average-duration (Include shared properties)
 billsRouter.get('/average-duration', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
+    const userEmail = req.user!.email?.toLowerCase();
+
+    // 1. Get properties user has access to
+    const { data: owned } = await supabase.from('properties').select('id').eq('user_id', req.user!.id);
+    const { data: shared } = await supabase.from('property_shares').select('property_id').eq('email', userEmail);
+    
+    const propIds = [
+      ...(owned?.map((p: { id: string }) => p.id) || []),
+      ...(shared?.map((s: { property_id: string }) => s.property_id) || [])
+    ];
+
+    if (propIds.length === 0) {
+      res.json({ average: 20000 });
+      return;
+    }
+
+    // 2. Query bills for those properties
     const { data, error } = await supabase
       .from('bills')
       .select('processing_duration_ms')
-      .eq('user_id', req.user!.id)
+      .in('property_id', propIds)
       .not('processing_duration_ms', 'is', null)
       .order('created_at', { ascending: false })
       .limit(5);

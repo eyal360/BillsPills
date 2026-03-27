@@ -1,0 +1,48 @@
+/* Custom Toaster Styles - Matching User Screenshot */
+.custom-toast {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  font-family: inherit !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  min-width: 280px !important;
+  max-width: 450px !important;
+  direction: rtl !important;
+}
+
+/* Success Toast */
+.toast-success {
+  background-color: #007a5a !important;
+}
+
+/* Error Toast */
+.toast-error {
+  background-color: #dc2626 !important;
+}
+
+/* Info Toast */
+.toast-info {
+  background-color: #2563eb !important;
+}
+
+/* Warning Toast */
+.toast-warning {
+  background-color: #9a3412 !important;
+}
+
+.toast-close-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.toast-close-btn:hover {
+  color: #ffffff;
+}

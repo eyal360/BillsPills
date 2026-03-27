@@ -10,6 +10,8 @@ import { useBillProcess } from '../contexts/BillProcessContext';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import './HomePage.css';
 
+import { PropertyMenu } from '../components/PropertyMenu';
+
 const PROPERTY_EMOJIS = ['🏠', '🏢', '🏗️', '🏬', '🏰', '🏡', '🏦', '🏪'];
 
 export const HomePage: React.FC = () => {
@@ -44,9 +46,19 @@ export const HomePage: React.FC = () => {
   useEffect(() => { fetchProperties(); }, []);
 
   const handlePropertyAdded = (property: Property) => {
-    setProperties(prev => [property, ...prev]);
+    setProperties(prev => {
+      const exists = prev.find(p => p.id === property.id);
+      if (exists) {
+        return prev.map(p => p.id === property.id ? property : p);
+      }
+      return [property, ...prev];
+    });
     setShowAddModal(false);
     setInitialPropertyName('');
+  };
+
+  const handlePropertyDeleted = (id: string) => {
+    setProperties(prev => prev.filter(p => p.id !== id));
   };
 
   const handleBillAdded = (bill: Bill) => {
@@ -104,6 +116,11 @@ export const HomePage: React.FC = () => {
               className="property-card card card-interactive"
               onClick={() => navigate(`/property/${prop.id}`)}
             >
+              <PropertyMenu 
+                property={prop} 
+                onUpdate={handlePropertyAdded} 
+                onDelete={handlePropertyDeleted} 
+              />
               <div className="property-emoji">
                 {prop.icon || PROPERTY_EMOJIS[idx % PROPERTY_EMOJIS.length]}
               </div>
@@ -146,6 +163,11 @@ export const HomePage: React.FC = () => {
                     className="property-card card card-interactive archived"
                     onClick={() => navigate(`/property/${prop.id}`)}
                   >
+                    <PropertyMenu 
+                      property={prop} 
+                      onUpdate={handlePropertyAdded} 
+                      onDelete={handlePropertyDeleted} 
+                    />
                     <div className="property-emoji">
                       {prop.icon || PROPERTY_EMOJIS[idx % PROPERTY_EMOJIS.length]}
                     </div>

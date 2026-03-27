@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Property } from '../types';
 import api from '../lib/api';
 import './AddPropertyModal.css';
@@ -15,7 +16,7 @@ type Step = 1 | 2;
 export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded, initialName = '', editingProperty }) => {
   const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState(editingProperty?.name || initialName);
-  const [address, setAddress] = useState(editingProperty?.address || '');
+  const [address, setAddress] = useState(editingProperty?.address || editingProperty?.address || '');
   const [description, setDescription] = useState(editingProperty?.description || '');
   const [icon, setIcon] = useState(editingProperty?.icon || '🏢');
   const [loading, setLoading] = useState(false);
@@ -65,9 +66,12 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded, initialNam
   };
 
 
-  return (
-    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+  return createPortal(
+    <div className="modal-backdrop" onClick={e => {
+      e.stopPropagation();
+      if (e.target === e.currentTarget) onClose();
+    }}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {step > 1 && (
@@ -87,7 +91,7 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded, initialNam
                 חזור
               </button>
             )}
-            <h2 className="modal-title">הוספת נכס חדש</h2>
+            <h2 className="modal-title">{editingProperty ? 'עריכת נכס' : 'הוספת נכס חדש'}</h2>
           </div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
@@ -225,16 +229,17 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded, initialNam
             </button>
           ) : (
             <button
-              className="btn btn-primary"
-              style={{ flex: 1 }}
-              onClick={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : 'עדכן נכס'}
-            </button>
+               className="btn btn-primary"
+               style={{ flex: 1 }}
+               onClick={handleSubmit}
+               disabled={loading}
+             >
+               {loading ? <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : editingProperty ? 'עדכן נכס' : 'הוסף נכס'}
+             </button>
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

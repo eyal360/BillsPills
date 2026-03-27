@@ -40,7 +40,6 @@
   aspect-ratio: 1 / 1;
   justify-content: center;
   min-width: 0; /* Important for grid item shrinking */
-  overflow: hidden;
 }
 
 .property-emoji {
@@ -184,3 +183,4 @@
 .properties-grid.archived {
   animation: fadeIn 0.3s ease-out;
 }
+

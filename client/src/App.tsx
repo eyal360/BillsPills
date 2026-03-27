@@ -12,6 +12,8 @@ import { ChatBubble } from './components/ChatBubble';
 import { BillProcessProvider } from './contexts/BillProcessContext';
 import { FloatingProcessManager } from './components/FloatingProcessManager';
 import { DialogProvider } from './contexts/DialogContext';
+import { Toaster } from 'react-hot-toast';
+import './components/ToastStyles.css';
 
 // Protected Route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({ children, adminOnly }) => {
@@ -84,6 +86,7 @@ const App: React.FC = () => {
           <SettingsProvider>
             <BillProcessProvider>
               <AppRoutes />
+              <Toaster position="top-center" />
             </BillProcessProvider>
           </SettingsProvider>
         </AuthProvider>

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export const authRouter = Router();
 
@@ -45,16 +46,14 @@ authRouter.post('/logout', async (_req: Request, res: Response): Promise<void> =
 authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
+    logger.info(`Auth /me called - header present: ${!!authHeader}`);
+    
     if (!authHeader?.startsWith('Bearer ')) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
     const token = authHeader.split(' ')[1];
-    if (!supabase) {
-      res.status(500).json({ error: 'Server configuration error' });
-      return;
-    }
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error || !user) {
@@ -62,31 +61,25 @@ authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    let { data: profile, error: profileError } = await supabase
+    let { data: profile } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    // If profile doesn't exist (e.g. first Google login), create it
-    if (!profile && profileError?.code === 'PGRST116') {
-      try {
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-            role: 'user',
-          })
-          .select('*')
-          .single();
-        
-        if (!insertError) {
-          profile = newProfile;
-        }
-      } catch (e) {
-        // failed to create profile
-      }
+    // If profile doesn't exist, create it
+    if (!profile) {
+      const { data: newProfile } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+          role: 'user',
+        })
+        .select('*')
+        .single();
+      
+      profile = newProfile;
     }
 
     res.json({ 
@@ -95,6 +88,7 @@ authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
       ...(profile || {}) 
     });
   } catch (err: any) {
+    logger.error('Auth /me error:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

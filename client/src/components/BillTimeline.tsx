@@ -13,6 +13,8 @@ interface Props {
   billId: string;
   propertyId: string;
   refreshKey?: number;
+  optimisticEvents?: BillEvent[];
+  onFetchSuccess?: () => void;
 }
 
 const formatTs = (iso: string) => {
@@ -25,28 +27,26 @@ const formatTs = (iso: string) => {
   return `${dd}/${mm}/${yy} | ${hh}:${min}`;
 };
 
-export const BillTimeline: React.FC<Props> = ({ billId, propertyId, refreshKey }) => {
+export const BillTimeline: React.FC<Props> = ({ 
+  billId, 
+  propertyId, 
+  refreshKey, 
+  optimisticEvents = [],
+  onFetchSuccess
+}) => {
   const [events, setEvents] = useState<BillEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Immediate visual feedback on refresh
-  useEffect(() => {
-    if (refreshKey !== undefined && !loading) {
-      setIsRefreshing(true);
-    }
-  }, [refreshKey, loading]);
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         const res = await api.get(`/properties/${propertyId}/bills/${billId}/events`);
         setEvents(res.data);
+        onFetchSuccess?.();
       } catch (err) {
-        // failed to fetch events silently
+        // failed silently
       } finally {
         setLoading(false);
-        setIsRefreshing(false);
       }
     };
     fetchEvents();
@@ -59,26 +59,29 @@ export const BillTimeline: React.FC<Props> = ({ billId, propertyId, refreshKey }
     </div>
   );
 
+  // Merge events, filtering out duplicates if any (e.g. if optimistic event was actually fetched)
+  // We prioritize fetched events.
+  const fetchedIds = new Set(events.map(e => e.id));
+  const filteredOptimistic = optimisticEvents.filter(e => !fetchedIds.has(e.id));
+  
+  const allEvents = [...filteredOptimistic, ...events].sort((a, b) => 
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
   return (
-    <div className={`bill-timeline-container ${isRefreshing ? 'refreshing' : ''}`} onClick={e => e.stopPropagation()}>
+    <div className="bill-timeline-container" onClick={e => e.stopPropagation()}>
       <div className="timeline-title">היסטוריית חשבון</div>
       
-      {isRefreshing && (
-        <div className="timeline-refresh-overlay">
-          <div className="spinner-md" />
-        </div>
-      )}
-
       <div className="timeline-scroll-content">
-        {events.length === 0 ? (
+        {allEvents.length === 0 ? (
           <div className="timeline-empty">אין אירועים לתצוגה</div>
         ) : (
           <div className="timeline-list">
-            {events.map((event, i) => (
+            {allEvents.map((event, i) => (
               <div key={event.id} className="timeline-item">
                 <div className="timeline-dot-wrapper">
                   <div className="timeline-dot" />
-                  {i < events.length - 1 && <div className="timeline-line" />}
+                  {i < allEvents.length - 1 && <div className="timeline-line" />}
                 </div>
                 <div className="timeline-content">
                   <div className="timeline-header">

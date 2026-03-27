@@ -1,0 +1,105 @@
+.property-menu-container {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+}
+
+.property-menu-container.menu-open {
+  z-index: 10000;
+}
+
+.property-card-menu-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  margin: 0;
+}
+
+.property-card-menu-btn:hover {
+  background: rgba(var(--primary-rgb, 8, 166, 119), 0.1);
+  color: var(--brand-primary);
+  transform: scale(1.05);
+}
+
+.property-dropdown {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  background: var(--bg-modal);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  min-width: 180px;
+  box-shadow: var(--shadow-xl);
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  animation: slideDownFade 0.2s ease-out;
+  transform-origin: top left;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: right;
+  width: 100%;
+}
+
+.dropdown-item:hover {
+  background: rgba(var(--primary-rgb, 8, 166, 119), 0.1);
+  color: var(--brand-primary);
+}
+
+.dropdown-item.delete {
+  color: #ff4d4d;
+}
+
+.dropdown-item.delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 6px 4px;
+}
+
+@keyframes slideDownFade {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* RTL Adjustment for edge detection simplified */
+.property-dropdown.align-right {
+  left: auto;
+  right: 0;
+  transform-origin: top right;
+}

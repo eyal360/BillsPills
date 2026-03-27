@@ -9,10 +9,9 @@ import { ExpenseModal } from '../components/ExpenseModal';
 import { CustomSelect } from '../components/CustomSelect';
 import { BillTimeline } from '../components/BillTimeline';
 import { MONTHS } from '../lib/constants';
-import { PieChart, MoreVertical, Edit, Archive, Trash2, ArchiveRestore, ChevronDown, ChevronUp } from 'lucide-react';
+import { PieChart, ChevronDown, ChevronUp } from 'lucide-react';
 import { useBillProcess } from '../contexts/BillProcessContext';
 import { AddPropertyModal } from '../components/AddPropertyModal';
-import { useNavigate } from 'react-router-dom';
 import { useDialog } from '../contexts/DialogContext';
 import './PropertyPage.css';
 
@@ -37,29 +36,29 @@ export const PropertyPage: React.FC = () => {
   const [partialValue, setPartialValue] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'paid' | 'partial' | 'waiting' | null>(null);
   const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
-  const [showMenu, setShowMenu] = useState(false);
+  const [optimisticEvents, setOptimisticEvents] = useState<any[]>([]);
+
+  const addOptimisticEvent = (title: string, note: string) => {
+    const newEvent = {
+      id: `temp-${Date.now()}`,
+      title,
+      note,
+      created_at: new Date().toISOString(),
+      isOptimistic: true
+    };
+    setOptimisticEvents(prev => [newEvent, ...prev]);
+  };
   const [showEditPropertyModal, setShowEditPropertyModal] = useState(false);
   const [partialError, setPartialError] = useState<string | null>(null);
   const [isPaidSectionExpanded, setIsPaidSectionExpanded] = useState(false);
   const [expandedYears, setExpandedYears] = useState<Record<number, boolean>>({});
   const { confirm } = useDialog();
-  const navigate = useNavigate();
 
   // Undo Toast state
   const [undoAction, setUndoAction] = useState<UndoState>({ visible: false, label: '', undoFn: async () => { } });
   const undoTimer = useRef<any>(null);
 
-  const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -143,80 +142,10 @@ export const PropertyPage: React.FC = () => {
     return Array.from(years).sort((a, b) => b - a);
   }, [bills]);
 
-  const handleEditProperty = () => {
-    setShowEditPropertyModal(true);
-    setShowMenu(false);
-  };
-
-  const handleArchiveToggle = async () => {
-    if (!property) return;
-    const isArchiving = !property.is_archived;
-
-    const confirmResult = await confirm({
-      title: isArchiving ? 'העברת נכס ל ' : 'ביטול ארכיון',
-      message: isArchiving
-        ? 'האם בטוח? פעולה זו תהפוך את הנכס ללא פעיל, אך כל המידע יישמר ותוכל לבטל זאת בכל עת.'
-        : 'האם ברצונך להחזיר את הנכס לארכיון הפעיל?',
-      icon: isArchiving ? '📦' : '🏠',
-      actions: [
-        { label: isArchiving ? 'העבר לארכיון' : 'ביטול ארכיון', type: 'primary' },
-        { label: 'ביטול', type: 'ghost' }
-      ]
-    });
-
-    if (confirmResult !== 0) return;
-
-    try {
-      const res = await api.put(`/properties/${property.id}`, {
-        ...property,
-        is_archived: isArchiving
-      });
-      setProperty(res.data);
-      setShowMenu(false);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const executeDeleteProperty = async () => {
-    if (!property) return;
-    try {
-      await api.delete(`/properties/${property.id}`);
-      navigate('/');
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDeletePropertyAction = async () => {
-    setShowMenu(false);
-
-    const result = await confirm({
-      title: 'מחיקת נכס',
-      message: (
-        <>
-          מחיקת <strong>{property?.name}</strong> תמחוק לצמיתות את כל היסטוריית החשבונות והתשלומים שלו.
-          <br /><br />
-          מומלץ להעביר לארכיון במקום - כך המידע יישמר אך הנכס לא יופיע ברשימה הפעילה.
-        </>
-      ),
-      icon: '⚠️',
-      actions: [
-        { label: 'העבר לארכיון (מומלץ)', type: 'primary' },
-        { label: 'מחק לצמיתות', type: 'danger' },
-        { label: 'ביטול', type: 'ghost' }
-      ]
-    });
-
-    if (result === 0) {
-      handleArchiveToggle();
-    } else if (result === 1) {
-      executeDeleteProperty();
-    }
-  };
 
   const handleBillUpdated = (updated: Bill) => {
     setBills(prev => prev.map(b => b.id === updated.id ? updated : b));
+    setTimelineRefreshKey(prev => prev + 1);
   };
 
   const handleUndoableAction = (undoFn: () => Promise<void>, label: string) => {
@@ -255,23 +184,24 @@ export const PropertyPage: React.FC = () => {
         }
 
         try {
+          const remaining = (bill.amount || 0) - (bill.paid_amount || 0);
+          addOptimisticEvent('שולם במלואו', `יתרה לסילוק: ₪${remaining.toFixed(1)}`);
+          
+          // Clear expansion and blur immediately
+          setExpandedBillId(null);
+          setShowPartialInput(false);
+
           const res = await api.put(`/bills/${bill.id}`, {
             ...bill,
             status: 'paid',
             paid_amount: bill.amount || 0
           });
 
-          const remaining = (bill.amount || 0) - (bill.paid_amount || 0);
-          await api.post(`/properties/${id}/bills/${bill.id}/events`, {
-            title: 'החשבון שולם',
-            note: `יתרה לסילוק: ₪${remaining.toFixed(1)}`
-          });
-
           handleBillUpdated(res.data);
-          setTimelineRefreshKey(prev => prev + 1); // Refresh timeline
-          setShowPartialInput(false);
+          setTimelineRefreshKey(prev => prev + 1);
         } catch (err) {
           setSelectedStatus(bill.status);
+          setOptimisticEvents(prev => prev.filter(e => !e.isOptimistic));
         }
       }, 50);
     } else if (newStatus === 'partial') {
@@ -297,22 +227,19 @@ export const PropertyPage: React.FC = () => {
       }
 
       try {
+        addOptimisticEvent('התשלום בוטל', 'החשבון הוחזר למצב "לא שולם"');
         const res = await api.put(`/bills/${bill.id}`, {
           ...bill,
           status: 'waiting',
           paid_amount: 0
         });
 
-        await api.post(`/properties/${id}/bills/${bill.id}/events`, {
-          title: 'התשלום בוטל',
-          note: 'החשבון הוחזר למצב "לא שולם"'
-        });
-
         handleBillUpdated(res.data);
-        setTimelineRefreshKey(prev => prev + 1); // Refresh timeline
+        setTimelineRefreshKey(prev => prev + 1);
         setShowPartialInput(false);
       } catch (err) {
         setSelectedStatus(bill.status);
+        setOptimisticEvents(prev => prev.filter(e => !e.isOptimistic));
       }
     }
   };
@@ -356,26 +283,36 @@ export const PropertyPage: React.FC = () => {
     }
 
     try {
+      const addedNow = newPaymentAmount.toFixed(1);
+      const remaining = (totalBillAmount - newTotalPaid).toFixed(1);
+      const eventTitle = statusToSave === 'paid' ? 'שולם במלואו' : 'שולם חלקית';
+      const eventNote = statusToSave === 'paid' 
+        ? `החשבון סולק במלואו (₪${newTotalPaid.toFixed(1)})`
+        : `שולם עכשיו: ₪${addedNow} | סה"כ שולם: ₪${newTotalPaid.toFixed(1)} | נשאר: ₪${remaining}`;
+      
+      addOptimisticEvent(eventTitle, eventNote);
+
+      // If fully paid, close expansion immediately to avoid orphaned blur
+      if (statusToSave === 'paid') {
+        setExpandedBillId(null);
+        setShowPartialInput(false);
+      }
+
       const res = await api.put(`/bills/${bill.id}`, {
         ...bill,
         status: statusToSave,
         paid_amount: newTotalPaid
       });
 
-      // Add timeline event
-      await api.post(`/properties/${id}/bills/${bill.id}/events`, {
-        title: statusToSave === 'paid' ? 'החשבון שולם במלואו' : 'שולם חלקית',
-        note: statusToSave === 'paid'
-          ? `החשבון סולק במלואו (₪${newTotalPaid.toFixed(1)})`
-          : `שולם עכשיו: ₪${newPaymentAmount} | סה"כ שולם: ₪${newTotalPaid.toFixed(1)} | נשאר: ₪${(totalBillAmount - newTotalPaid).toFixed(1)}`
-      });
-
       handleBillUpdated(res.data);
-      setTimelineRefreshKey(prev => prev + 1); // Refresh timeline
+      setTimelineRefreshKey(prev => prev + 1);
       setPartialValue('');
-      setShowPartialInput(false);
+      if (statusToSave !== 'paid') {
+        setShowPartialInput(false);
+      }
     } catch (err) {
       console.error('Partial payment error:', err);
+      setOptimisticEvents(prev => prev.filter(e => !e.isOptimistic));
     }
   };
 
@@ -440,35 +377,6 @@ export const PropertyPage: React.FC = () => {
     <Layout
       title={property?.name || 'נכס'}
       titleClassName="property-title"
-      headerActions={
-        <div className="property-menu-container" ref={menuRef}>
-          <button
-            className="btn-icon header-action-btn"
-            onClick={() => setShowMenu(!showMenu)}
-            aria-label="תפריט נכס"
-          >
-            <MoreVertical size={20} />
-          </button>
-
-          {showMenu && (
-            <div className={`property-dropdown ${showMenu ? 'show' : ''}`}>
-              <button className="dropdown-item" onClick={handleEditProperty}>
-                <Edit size={16} />
-                <span>ערוך נכס</span>
-              </button>
-              <button className="dropdown-item" onClick={handleArchiveToggle}>
-                {property?.is_archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
-                <span>{property?.is_archived ? 'ביטול ארכיון' : 'העבר לארכיון'}</span>
-              </button>
-              <div className="dropdown-divider"></div>
-              <button className="dropdown-item delete" onClick={handleDeletePropertyAction}>
-                <Trash2 size={16} />
-                <span>מחק נכס</span>
-              </button>
-            </div>
-          )}
-        </div>
-      }
     >
       <div className="page-content">
         <div className="summary-wrapper">
@@ -586,7 +494,13 @@ export const PropertyPage: React.FC = () => {
                               )}
                             </div>
                           )}
-                          <BillTimeline billId={bill.id} propertyId={id!} refreshKey={timelineRefreshKey} />
+                          <BillTimeline 
+                billId={bill.id} 
+                propertyId={id!} 
+                refreshKey={timelineRefreshKey} 
+                optimisticEvents={optimisticEvents.filter(e => e.bill_id === bill.id || !e.bill_id)}
+                onFetchSuccess={() => setOptimisticEvents([])}
+              />
                         </div>
                       )}
                     </div>
@@ -642,6 +556,46 @@ export const PropertyPage: React.FC = () => {
                                         <div style={{ lineHeight: '1.4' }}>{bill.notes}</div>
                                       </div>
                                     )}
+                                    <div className="bill-actions-row">
+                                      <div className="status-toggle-container" style={{ flex: 1, marginTop: 0 }}>
+                                        {(['paid' as const, 'partial' as const, 'waiting' as const]).map(s => (
+                                          <button
+                                            key={s}
+                                            className={`status-toggle-btn ${selectedStatus === s ? 'active' : ''} ${s}`}
+                                            onClick={() => handleStatusChange(bill, s)}
+                                          >
+                                            {s === 'paid' ? 'שולם' : s === 'partial' ? 'שילמתי חלק' : 'לא שולם'}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    {showPartialInput && (
+                                      <div className="partial-input-wrapper" style={{ marginBottom: '20px' }}>
+                                        <div className="partial-input-row">
+                                          <div className={`floating-group ${partialValue ? 'has-value' : ''}`} style={{ flex: 1, margin: 0 }}>
+                                            <input
+                                              type="number"
+                                              inputMode="decimal"
+                                              className={`floating-input ${partialError ? 'error' : ''}`}
+                                              placeholder=" "
+                                              value={partialValue}
+                                              onChange={e => {
+                                                setPartialValue(e.target.value);
+                                                if (partialError) setPartialError(null);
+                                              }}
+                                              dir="rtl"
+                                            />
+                                            <label className="floating-label">סכום לתשלום עכשיו (₪)</label>
+                                          </div>
+                                          <button className="btn btn-primary btn-sm" onClick={() => handleUpdatePartial(bill)}>עדכן</button>
+                                        </div>
+                                        {partialError && (
+                                          <div className="field-error" style={{ marginTop: '8px', padding: '0 12px' }}>
+                                            <span className="error-icon">⚠️</span> {partialError}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                     <BillTimeline billId={bill.id} propertyId={id!} refreshKey={timelineRefreshKey} />
                                   </div>
                                 )}
@@ -671,7 +625,10 @@ export const PropertyPage: React.FC = () => {
           onClose={() => setEditingBill(undefined)}
           onAdded={(b) => {
             if (editingBill) handleBillUpdated(b);
-            else setBills(prev => [b, ...prev]);
+            else {
+              setBills(prev => [b, ...prev]);
+              setTimelineRefreshKey(prev => prev + 1);
+            }
             setEditingBill(undefined);
           }}
         />

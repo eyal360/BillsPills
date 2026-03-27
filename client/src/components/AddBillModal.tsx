@@ -148,6 +148,21 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
   // Sync with process state if re-opening a minimized process
   useEffect(() => {
+    if (editingBill) {
+      // Initialize state from editingBill
+      setBillType(editingBill.bill_type || '');
+      setAmount(editingBill.amount != null ? String(editingBill.amount) : '');
+      setPaidAmount(editingBill.paid_amount != null ? String(editingBill.paid_amount) : '');
+      setStatus(editingBill.status || 'paid');
+      setExtractedData(editingBill.extracted_data || {});
+      setStartDate(editingBill.billing_period_start ? new Date(editingBill.billing_period_start) : null);
+      setEndDate(editingBill.billing_period_end ? new Date(editingBill.billing_period_end) : null);
+      setNote(editingBill.notes || '');
+      setCurrentPropertyId(propertyId || editingBill.property_id || '');
+      setStep(3); // Go straight to edit step
+      return;
+    }
+
     if (processState) {
       if (processState.ocrResult) {
         const data = processState.ocrResult;
@@ -197,7 +212,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setOcrFields(new Set());
       setNote(''); // Reset note
     }
-  }, [activeProcessId]); // Only trigger on modal opening/switching
+  }, [activeProcessId, editingBill]); // Trigger on modal opening/switching or when editingBill changes
 
   // Date helpers
   const handleStartDateSelect = (val: Date) => {

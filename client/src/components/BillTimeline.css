@@ -1,8 +1,8 @@
 .bill-timeline-container {
-  background: rgba(30, 30, 30, 0.4);
+  background: var(--bg-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 24px;
   margin-top: 12px;
@@ -10,7 +10,7 @@
   animation: slideDownIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
   position: relative;
   z-index: 10;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -64,7 +64,7 @@
   top: 12px;
   bottom: -24px;
   width: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-subtle);
   z-index: 1;
 }
 
@@ -83,7 +83,7 @@
 
 .timeline-event-title {
   font-weight: 600;
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .timeline-date {
@@ -94,10 +94,12 @@
 .timeline-note {
   font-size: 0.85rem;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.05);
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin-top: 4px;
+  background: var(--bg-surface-subtle);
+  padding: 10px 16px;
+  border-radius: 12px;
+  margin-top: 6px;
+  border: 1px solid var(--border-subtle);
+  line-height: 1.4;
 }
 
 .timeline-loading, .timeline-empty {
@@ -109,7 +111,7 @@
 .spinner-sm {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid var(--border-subtle);
   border-top-color: var(--brand-primary);
   border-radius: 50%;
   animation: rotate 1s linear infinite;
@@ -136,10 +138,11 @@
   align-items: center;
   justify-content: center;
   z-index: 15;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--bg-overlay);
   border-radius: var(--radius-lg);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  opacity: 0.7;
   animation: fadeIn 0.3s ease-out;
 }
 
