@@ -78,6 +78,17 @@ export const PropertyPage: React.FC = () => {
     fetchData();
   }, [id]);
 
+  // Safety: Clear expansion/blur if the current expanded bill is no longer available 
+  // or if we just want to ensure it closes on major list changes.
+  useEffect(() => {
+    if (expandedBillId) {
+      const billExists = bills.some(b => b.id === expandedBillId);
+      if (!billExists) {
+        setExpandedBillId(null);
+      }
+    }
+  }, [bills, expandedBillId]);
+
   const { unpaidBills, paidBillsGrouped } = useMemo(() => {
     const list = [...bills].filter(b => {
       if (!b.created_at) return true;
@@ -146,6 +157,29 @@ export const PropertyPage: React.FC = () => {
   const handleBillUpdated = (updated: Bill) => {
     setBills(prev => prev.map(b => b.id === updated.id ? updated : b));
     setTimelineRefreshKey(prev => prev + 1);
+  };
+
+  const handleRevertLastEvent = async (billId: string) => {
+    try {
+      addOptimisticEvent('מבטל פעולה...', 'מעדכן את מצב החשבון...');
+      const res = await api.delete(`/bills/${billId}/events/last`);
+      const updatedBill = res.data;
+      
+      // Update local state
+      setBills(prev => prev.map(b => b.id === billId ? updatedBill : b));
+      
+      // Update UI state
+      setSelectedStatus(updatedBill.status);
+      setPartialValue('');
+      setShowPartialInput(false);
+      setExpandedBillId(null);
+      
+      // Refresh timeline
+      setTimelineRefreshKey(prev => prev + 1);
+    } catch (err) {
+      console.error('Failed to revert event:', err);
+      setOptimisticEvents(prev => prev.filter(e => !e.isOptimistic));
+    }
   };
 
   const handleUndoableAction = (undoFn: () => Promise<void>, label: string) => {
@@ -228,6 +262,7 @@ export const PropertyPage: React.FC = () => {
 
       try {
         addOptimisticEvent('התשלום בוטל', 'החשבון הוחזר למצב "לא שולם"');
+        setExpandedBillId(null);
         const res = await api.put(`/bills/${bill.id}`, {
           ...bill,
           status: 'waiting',
@@ -495,12 +530,13 @@ export const PropertyPage: React.FC = () => {
                             </div>
                           )}
                           <BillTimeline 
-                billId={bill.id} 
-                propertyId={id!} 
-                refreshKey={timelineRefreshKey} 
-                optimisticEvents={optimisticEvents.filter(e => e.bill_id === bill.id || !e.bill_id)}
-                onFetchSuccess={() => setOptimisticEvents([])}
-              />
+                            billId={bill.id} 
+                            propertyId={id!} 
+                            refreshKey={timelineRefreshKey} 
+                            optimisticEvents={optimisticEvents.filter(e => e.bill_id === bill.id || !e.bill_id)}
+                            onFetchSuccess={() => setOptimisticEvents([])}
+                            onRevert={() => handleRevertLastEvent(bill.id)}
+                          />
                         </div>
                       )}
                     </div>
@@ -556,47 +592,12 @@ export const PropertyPage: React.FC = () => {
                                         <div style={{ lineHeight: '1.4' }}>{bill.notes}</div>
                                       </div>
                                     )}
-                                    <div className="bill-actions-row">
-                                      <div className="status-toggle-container" style={{ flex: 1, marginTop: 0 }}>
-                                        {(['paid' as const, 'partial' as const, 'waiting' as const]).map(s => (
-                                          <button
-                                            key={s}
-                                            className={`status-toggle-btn ${selectedStatus === s ? 'active' : ''} ${s}`}
-                                            onClick={() => handleStatusChange(bill, s)}
-                                          >
-                                            {s === 'paid' ? 'שולם' : s === 'partial' ? 'שילמתי חלק' : 'לא שולם'}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-                                    {showPartialInput && (
-                                      <div className="partial-input-wrapper" style={{ marginBottom: '20px' }}>
-                                        <div className="partial-input-row">
-                                          <div className={`floating-group ${partialValue ? 'has-value' : ''}`} style={{ flex: 1, margin: 0 }}>
-                                            <input
-                                              type="number"
-                                              inputMode="decimal"
-                                              className={`floating-input ${partialError ? 'error' : ''}`}
-                                              placeholder=" "
-                                              value={partialValue}
-                                              onChange={e => {
-                                                setPartialValue(e.target.value);
-                                                if (partialError) setPartialError(null);
-                                              }}
-                                              dir="rtl"
-                                            />
-                                            <label className="floating-label">סכום לתשלום עכשיו (₪)</label>
-                                          </div>
-                                          <button className="btn btn-primary btn-sm" onClick={() => handleUpdatePartial(bill)}>עדכן</button>
-                                        </div>
-                                        {partialError && (
-                                          <div className="field-error" style={{ marginTop: '8px', padding: '0 12px' }}>
-                                            <span className="error-icon">⚠️</span> {partialError}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                    <BillTimeline billId={bill.id} propertyId={id!} refreshKey={timelineRefreshKey} />
+                                    <BillTimeline 
+                                      billId={bill.id} 
+                                      propertyId={id!} 
+                                      refreshKey={timelineRefreshKey} 
+                                      onRevert={() => handleRevertLastEvent(bill.id)}
+                                    />
                                   </div>
                                 )}
                               </div>

@@ -22,14 +22,17 @@ const formatBillingPeriodName = (startIso?: string, endIso?: string) => {
   if (!startIso) return '';
   const d1 = new Date(startIso);
   const m1 = HEBREW_MONTHS[d1.getMonth()];
+  const yy1 = String(d1.getFullYear()).slice(-2);
   
   if (endIso) {
     const d2 = new Date(endIso);
     const m2 = HEBREW_MONTHS[d2.getMonth()];
-    if (m1 === m2) return ` (${m1})`;
-    return ` (${m1}-${m2})`;
+    const yy2 = String(d2.getFullYear()).slice(-2);
+    
+    if (m1 === m2) return ` (${m1} ${yy1}')`;
+    return ` (${m1}-${m2} ${yy2}')`;
   }
-  return ` (${m1})`;
+  return ` (${m1} ${yy1}')`;
 };
 
 const getBillIcon = (type: string) =>

@@ -348,6 +348,10 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
     if (!billType) { setBillTypeError(true); hasError = true; }
     const totalAmount = parseFloat(amount);
     if (!amount || isNaN(totalAmount)) { setAmountError(true); hasError = true; }
+    
+    if (startDate && startDate > new Date()) { setError('תאריך ההתחלה לא יכול להיות בעתיד'); hasError = true; }
+    if (endDate && endDate > new Date()) { setError('תאריך הסיום לא יכול להיות בעתיד'); hasError = true; }
+
     if (hasError) return;
 
     try {
@@ -456,7 +460,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setTimeout(() => {
         if (activeProcessId) removeProcess(activeProcessId);
         onAdded(res.data);
-      }, 2000);
+      }, 1000);
 
     } catch (err: any) {
       console.error('Save bill error:', err);
@@ -622,6 +626,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                     onConfirm={handleStartDateSelect}
                     value={startDate || new Date()}
                     title="תאריך התחלה"
+                    max={new Date()}
                   />
                   <DatePicker
                     visible={showEndPicker}
@@ -630,6 +635,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                     value={endDate || startDate || new Date()}
                     title="תאריך סיום"
                     min={startDate || undefined}
+                    max={new Date()}
                   />
                 </ConfigProvider>
               </div>

@@ -287,6 +287,122 @@ billsRouter.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: R
   res.json({ message: 'Bill deleted' });
 });
 
+// DELETE /api/bills/:id/events/last - Revert last payment action
+billsRouter.delete('/:id/events/last', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { id: billId } = req.params;
+  const userEmail = req.user!.email?.toLowerCase();
+
+  try {
+    // 1. Fetch current bill and verify access
+    const { data: bill } = await supabase
+      .from('bills')
+      .select('property_id, amount, status, paid_amount')
+      .eq('id', billId)
+      .single();
+
+    if (!bill) {
+      res.status(404).json({ error: 'Bill not found' });
+      return;
+    }
+
+    // Verify access
+    const { data: property } = await supabase
+      .from('properties')
+      .select('user_id')
+      .eq('id', bill.property_id)
+      .single();
+
+    if (!property) {
+      res.status(404).json({ error: 'Property not found' });
+      return;
+    }
+
+    if (property.user_id !== req.user!.id) {
+      const { data: share } = await supabase
+        .from('property_shares')
+        .select('id')
+        .eq('property_id', bill.property_id)
+        .eq('email', userEmail)
+        .single();
+
+      if (!share) {
+        res.status(403).json({ error: 'Unauthorized' });
+        return;
+      }
+    }
+
+    // 2. Fetch all events for this bill to find last and previous
+    const { data: events, error: fetchError } = await supabase
+      .from('bill_events')
+      .select('*')
+      .eq('bill_id', billId)
+      .order('created_at', { ascending: true });
+
+    if (fetchError) throw fetchError;
+    if (!events || events.length <= 1) {
+      res.status(400).json({ error: 'Cannot revert the initial creation event' });
+      return;
+    }
+
+    const lastEvent = events[events.length - 1];
+    
+    // 3. Delete the last event
+    const { error: deleteError } = await supabase
+      .from('bill_events')
+      .delete()
+      .eq('id', lastEvent.id);
+
+    if (deleteError) throw deleteError;
+
+    // 4. Reconstruct bill state by looking backwards from the new last event
+    let newStatus = 'waiting';
+    let newPaidAmount = 0;
+    
+    // Iterate backwards starting from the second-to-last event (which is now the last)
+    for (let i = events.length - 2; i >= 0; i--) {
+      const ev = events[i];
+      if (ev.title === 'שולם במלואו') {
+        newStatus = 'paid';
+        newPaidAmount = bill.amount;
+        break;
+      } else if (ev.title === 'שולם חלקית') {
+        newStatus = 'partial';
+        const match = ev.note.match(/סה"כ שולם: ₪([0-9.]+)/);
+        if (match) {
+          newPaidAmount = parseFloat(match[1]);
+        }
+        break;
+      } else if (ev.title === 'התשלום נוצר') {
+        newStatus = 'waiting';
+        newPaidAmount = 0;
+        break;
+      }
+      // If title is "סכום התשלום עודכן" or similar, we continue looking backwards 
+      // because those events don't change the payment status/amount being reverted.
+    }
+
+    // 5. Update the bill with reconstructed state
+    const { data: updatedBill, error: updateError } = await supabase
+      .from('bills')
+      .update({
+        status: newStatus,
+        paid_amount: newPaidAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', billId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+    
+    logger.info(`Reverted event for bill ${billId}. New status: ${newStatus}, Amount: ${newPaidAmount}`);
+    res.json(updatedBill);
+  } catch (err: any) {
+    logger.error('Revert event error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST OCR — upload image and extract bill data
 billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   logger.info('OCR Handler entered', { file: req.file?.originalname, size: req.file?.size });

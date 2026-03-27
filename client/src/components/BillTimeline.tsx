@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { Undo2 } from 'lucide-react';
 import api from '../lib/api';
+import { useDialog } from '../contexts/DialogContext';
 import './BillTimeline.css';
 
 interface BillEvent {
@@ -15,6 +17,7 @@ interface Props {
   refreshKey?: number;
   optimisticEvents?: BillEvent[];
   onFetchSuccess?: () => void;
+  onRevert?: () => Promise<void>;
 }
 
 const formatTs = (iso: string) => {
@@ -27,12 +30,13 @@ const formatTs = (iso: string) => {
   return `${dd}/${mm}/${yy} | ${hh}:${min}`;
 };
 
-export const BillTimeline: React.FC<Props> = ({ 
-  billId, 
-  propertyId, 
-  refreshKey, 
+export const BillTimeline: React.FC<Props> = ({
+  billId,
+  propertyId,
+  refreshKey,
   optimisticEvents = [],
-  onFetchSuccess
+  onFetchSuccess,
+  onRevert
 }) => {
   const [events, setEvents] = useState<BillEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +56,29 @@ export const BillTimeline: React.FC<Props> = ({
     fetchEvents();
   }, [billId, propertyId, refreshKey]);
 
+  const { confirm: showConfirm } = useDialog();
+
+  const handleRevert = async () => {
+    if (!onRevert) return;
+    const confirmed = await showConfirm({
+      title: 'ביטול תנועה אחרונה',
+      message: 'האם אתה בטוח שברצונך לבטל את התנועה האחרונה?',
+      icon: '🔄',
+      actions: [
+        { label: 'כן, בטל', type: 'danger' },
+        { label: 'ביטול', type: 'ghost' }
+      ]
+    });
+
+    if (confirmed === 0) {
+      try {
+        await onRevert();
+      } catch (err) {
+        console.error('Revert failed:', err);
+      }
+    }
+  };
+
   if (loading) return (
     <div className="timeline-loading">
       <div className="spinner-sm" />
@@ -59,19 +86,17 @@ export const BillTimeline: React.FC<Props> = ({
     </div>
   );
 
-  // Merge events, filtering out duplicates if any (e.g. if optimistic event was actually fetched)
-  // We prioritize fetched events.
   const fetchedIds = new Set(events.map(e => e.id));
   const filteredOptimistic = optimisticEvents.filter(e => !fetchedIds.has(e.id));
-  
-  const allEvents = [...filteredOptimistic, ...events].sort((a, b) => 
+
+  const allEvents = [...filteredOptimistic, ...events].sort((a, b) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
   return (
     <div className="bill-timeline-container" onClick={e => e.stopPropagation()}>
       <div className="timeline-title">היסטוריית חשבון</div>
-      
+
       <div className="timeline-scroll-content">
         {allEvents.length === 0 ? (
           <div className="timeline-empty">אין אירועים לתצוגה</div>
@@ -86,7 +111,18 @@ export const BillTimeline: React.FC<Props> = ({
                 <div className="timeline-content">
                   <div className="timeline-header">
                     <span className="timeline-event-title">{event.title}</span>
-                    <span className="timeline-date">{formatTs(event.created_at)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="timeline-date">{formatTs(event.created_at)}</span>
+                      {i === 0 && allEvents.length > 1 && onRevert && (
+                        <button
+                          className="revert-btn"
+                          onClick={(e) => { e.stopPropagation(); handleRevert(); }}
+                          title="בטל פעולה אחרונה"
+                        >
+                          <Undo2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {event.note && <div className="timeline-note">{event.note}</div>}
                 </div>
