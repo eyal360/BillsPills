@@ -64,37 +64,7 @@ billsRouter.get('/average-duration', requireAuth, async (req: AuthenticatedReque
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// --- DEBUG ENDPOINT ---
-billsRouter.get('/debug', requireAuth, async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const diagnosticRes: any = {
-    env: {
-      NODE_ENV: process.env.NODE_ENV,
-      HAS_GEMINI_KEY: !!process.env.GEMINI_API_KEY,
-      GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash (default)',
-      PORT: process.env.PORT
-    },
-    files: {},
-    gemini: 'not_tested'
-  };
 
-  try {
-    const { getPromptTemplate } = require('../lib/prompts');
-    const template = await getPromptTemplate('ocr_extraction');
-    diagnosticRes.files.ocr_extraction_template_size = template.length;
-  } catch (err: any) {
-    diagnosticRes.files.ocr_extraction_error = err.message;
-  }
-
-  try {
-    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
-    diagnosticRes.gemini = 'model_initialized';
-  } catch (err: any) {
-    diagnosticRes.gemini = `initialization_failed: ${err.message}`;
-  }
-
-  res.json(diagnosticRes);
-});
-// --- END DEBUG ---
 
 // GET single bill
 billsRouter.get('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -525,7 +495,6 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
     ]);
 
     const content = result.response.text() || '{}';
-    logger.debug(`Gemini Raw Response: ${content}`);
     
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -560,7 +529,6 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       
       const contentToEmbed = `סוג חשבון: ${billType}\nסכום: ${amount}\nנתונים שחולצו: ${JSON.stringify(extracted.extracted_data || extracted)}`;
       
-      logger.info(`Generating embedding for review using ${embeddingModelName}...`);
       
       const embedResult = await embeddingModel.embedContent({
         content: { role: 'user', parts: [{ text: contentToEmbed }] },
@@ -589,8 +557,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
     // User facing error (Return actual error message in debug/dev)
     const errorMsg = err.message || 'שגיאה בעיבוד התמונה — ניתן להזין נתונים ידנית';
     res.status(500).json({ 
-      error: errorMsg,
-      details: process.env.NODE_ENV === 'production' ? undefined : err.stack
+      error: errorMsg
     });
   }
 });

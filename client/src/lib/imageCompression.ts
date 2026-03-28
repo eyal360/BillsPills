@@ -15,7 +15,6 @@ export interface CompressionResult {
  */
 export async function processFileForUpload(file: File): Promise<File> {
   const originalSizeMB = file.size / (1024 * 1024);
-  console.log(`[FileProcess] Initial file: ${file.name}, Size: ${originalSizeMB.toFixed(2)} MB, Type: ${file.type}`);
 
   // 1. Handle PDFs
   if (file.type === 'application/pdf') {
@@ -35,11 +34,9 @@ export async function processFileForUpload(file: File): Promise<File> {
     };
 
     try {
-      console.log(`[FileProcess] Compressing image...`);
       const compressedFile = await imageCompression(file, options);
       const compressedSizeMB = compressedFile.size / (1024 * 1024);
       
-      console.log(`[FileProcess] Compression complete: ${compressedSizeMB.toFixed(2)} MB`);
       
       if (compressedSizeMB > MAX_SIZE_MB) {
         throw new Error(`גם לאחר דחיסה, התמונה גדולה מדי (${compressedSizeMB.toFixed(1)}MB). אנא בחר קובץ קטן יותר.`);
@@ -51,7 +48,7 @@ export async function processFileForUpload(file: File): Promise<File> {
         lastModified: Date.now(),
       });
     } catch (error) {
-      console.error(`[FileProcess] Compression failed:`, error);
+      console.error(`Compression failed:`, error);
       // If compression fails but original was under limit, we can try sending as is
       if (originalSizeMB <= MAX_SIZE_MB) {
         return file;

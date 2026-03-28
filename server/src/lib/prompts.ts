@@ -32,7 +32,7 @@ export async function getPromptTemplate(
       throw new Error(`Prompt template not found in any of: ${possibleRoots.join(', ')}`);
     }
 
-    logger.info(`[Prompts] Successfully loaded template: ${templateName} from ${promptPath}`);
+
 
     // Dynamically inject values
     for (const [key, value] of Object.entries(variables)) {
