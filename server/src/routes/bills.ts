@@ -22,6 +22,10 @@ const EXTRACTION_FIELDS = [
   'payment_method',
   'address',
   'notes',
+  'payment_url',
+  'company_name',
+  'is_automatic_payment',
+  'is_general_link',
 ];
 
 // Moving routes up to prevent shadowing by /:id
@@ -597,18 +601,25 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
     const billingPeriodEnd = extracted.billing_period_end || extracted.extracted_data?.billing_period_end || null;
     const propertyId = extracted.matched_property_id || extracted.extracted_data?.matched_property_id || null;
     const recognizedPropertyName = extracted.recognized_property_name || extracted.extracted_data?.recognized_property_name || extracted.extracted_data?.property_name || extracted.extracted_data?.address || null;
+    const isAutomaticPayment = extracted.is_automatic_payment || extracted.extracted_data?.is_automatic_payment || false;
+    const paymentUrl = isAutomaticPayment ? null : (extracted.payment_url || extracted.extracted_data?.payment_url || null);
+    const companyName = extracted.company_name || extracted.extracted_data?.company_name || null;
+    const isGeneralLink = extracted.is_general_link || extracted.extracted_data?.is_general_link || false;
 
     logger.info(`OCR Success: Type=${billType}, Amount=${amount}, Period=${billingPeriodStart} to ${billingPeriodEnd}, PropMatch=${propertyId}`);
 
     // Generate embedding in-memory (consolidated pipeline)
-    let embedding: number[] | null = null;
+    let billEmbedding: number[] | null = null;
     try {
-      const embeddingModelName = process.env.GEMINI_EMBEDDING_MODEL || 'models/gemini-embedding-2-preview';
+      let model = process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004';
+      if (model.startsWith('models/')) {
+        model = model.replace('models/', '');
+      }
       
       // Minimal content for faster embedding
       const contentToEmbed = `סוג: ${billType} | סכום: ${amount} | מציג: ${JSON.stringify(extracted.extracted_data || extracted).substring(0, 500)}`;
       
-      const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${embeddingModelName}:embedContent?key=${apiKey}`;
+      const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`;
       const embedRes = await fetch(embedUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -624,7 +635,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       }
 
       const embedData: any = await embedRes.json();
-      embedding = embedData.embedding.values;
+      billEmbedding = embedData.embedding.values;
     } catch (embedErr: any) {
       logger.error('Embedding generation failure during OCR:', embedErr.message);
       // We don't fail the whole OCR if embedding fails, but we log it
@@ -632,15 +643,18 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
 
     res.json({
       bill_type: billType,
-      amount: amount,
+      amount,
       billing_period_start: billingPeriodStart,
       billing_period_end: billingPeriodEnd,
       matched_property_id: propertyId,
       recognized_property_name: recognizedPropertyName,
+      payment_url: paymentUrl,
+      company_name: companyName,
+      is_automatic_payment: isAutomaticPayment,
+      is_general_link: isGeneralLink,
       extracted_data: extracted.extracted_data || extracted,
-      fields: EXTRACTION_FIELDS,
-      embedding: embedding, // Return to client memory
-      processing_duration_ms: Date.now() - startTimeOCR
+      processing_duration_ms: Date.now() - startTimeOCR,
+      embedding: billEmbedding
     });
   } catch (err: any) {
     logger.error('OCR error:', { message: err.message, stack: err.stack });

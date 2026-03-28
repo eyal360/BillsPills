@@ -87,6 +87,10 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
   const [startDate, setStartDate] = useState<Date | null>(editingBill?.billing_period_start ? new Date(editingBill.billing_period_start) : null);
   const [endDate, setEndDate] = useState<Date | null>(editingBill?.billing_period_end ? new Date(editingBill.billing_period_end) : null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [isAutomaticPayment, setIsAutomaticPayment] = useState<boolean>(false);
+  const [isGeneralLink, setIsGeneralLink] = useState<boolean>(false);
 
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
@@ -210,8 +214,11 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setCurrentPropertyId(propertyId || '');
       setError('');
       setOcrUsed(false);
-      setOcrFields(new Set());
       setNote(''); // Reset note
+      setPaymentUrl(null);
+      setCompanyName(null);
+      setIsAutomaticPayment(false);
+      setIsGeneralLink(false);
     }
   }, [activeProcessId, editingBill]); // Trigger on modal opening/switching or when editingBill changes
 
@@ -315,6 +322,10 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       }
 
       setOcrFields(fields);
+      setPaymentUrl(data.payment_url || data.extracted_data?.payment_url || null);
+      setCompanyName(data.company_name || data.extracted_data?.company_name || null);
+      setIsAutomaticPayment(data.is_automatic_payment || data.extracted_data?.is_automatic_payment || false);
+      setIsGeneralLink(data.is_general_link || data.extracted_data?.is_general_link || false);
 
       if (data.matched_property_id) {
         setCurrentPropertyId(data.matched_property_id);
@@ -504,6 +515,29 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
       if (activeProcessId) {
         completeProcess(activeProcessId, res.data.id, currentPropertyId);
+      }
+
+      // If OCR was used and status is "waiting" (unpaid), and we have a payment link
+      if (!editingBill && ocrUsed && status === 'waiting' && paymentUrl) {
+        const buttonLabel = isGeneralLink
+          ? `כן, קח אותי לאתר ${companyName || ''}`
+          : 'כן, קח אותי לאתר התשלום';
+
+        const confirmed = await confirm({
+          title: 'זיהינו שהחשבון לא שולם',
+          message: isAutomaticPayment
+            ? 'האם ברצונך לעבור לאתר התשלום עכשיו?\n(שים לב: החשבון זוהה כחשבון ששולם כבר)'
+            : 'האם ברצונך לעבור לאתר התשלום עכשיו?',
+          icon: '💳',
+          actions: [
+            { label: buttonLabel, type: 'primary' },
+            { label: 'דלג', type: 'ghost' }
+          ]
+        });
+
+        if (confirmed === 0) {
+          window.open(paymentUrl, '_blank');
+        }
       }
 
       setTimeout(() => {

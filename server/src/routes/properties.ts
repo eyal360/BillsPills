@@ -286,15 +286,18 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
 
   // --- RAG: Generate and store embedding ---
   try {
-    const embeddingModelName = process.env.GEMINI_EMBEDDING_MODEL || 'models/gemini-embedding-2-preview';
+    let model = process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004';
+    if (model.startsWith('models/')) {
+      model = model.replace('models/', '');
+    }
     const apiKey = process.env.GEMINI_API_KEY || '';
     
     // Create a searchable text representation of the bill
     const contentToEmbed = `סוג חשבון: ${bill_type}\nסכום: ${amount}\nנתונים שחולצו: ${JSON.stringify(extracted_data)}`;
     
-    logger.info(`Generating embedding for bill ${data.id} using ${embeddingModelName} (Direct REST)...`);
+    logger.info(`Generating embedding for bill ${data.id} using ${model} (Direct REST)...`);
     
-    const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${embeddingModelName}:embedContent?key=${apiKey}`;
+    const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`;
     const embedRes = await fetch(embedUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
