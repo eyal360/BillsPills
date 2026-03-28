@@ -8,10 +8,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const billsRouter = Router();
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
-// Fields to extract from bills (extensible list)
+// 1. Static/Search routes (MUST come before /:id)
 const EXTRACTION_FIELDS = [
   'bill_number',
   'supplier_name',
@@ -27,6 +24,45 @@ const EXTRACTION_FIELDS = [
   'address',
   'notes',
 ];
+
+// Moving routes up to prevent shadowing by /:id
+billsRouter.get('/fields', requireAuth, (_req: AuthenticatedRequest, res: Response): void => {
+  res.json({ fields: EXTRACTION_FIELDS });
+});
+
+billsRouter.get('/unique-types', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userEmail = req.user!.email?.toLowerCase();
+    const { data: owned } = await supabase.from('properties').select('id').eq('user_id', req.user!.id);
+    const { data: shared } = await supabase.from('property_shares').select('property_id').eq('email', userEmail);
+    const propIds = [...(owned?.map((p: { id: string }) => p.id) || []), ...(shared?.map((s: { property_id: string }) => s.property_id) || [])];
+    if (propIds.length === 0) { res.json({ types: [] }); return; }
+    const { data, error } = await supabase.from('bills').select('bill_type').in('property_id', propIds);
+    if (error) throw error;
+    const uniqueTypes = Array.from(new Set(data.map((b: any) => b.bill_type))).filter(Boolean);
+    res.json({ types: uniqueTypes });
+  } catch (err: any) {
+    logger.error('Failed to fetch unique bill types:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+billsRouter.get('/average-duration', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userEmail = req.user!.email?.toLowerCase();
+    const { data: owned } = await supabase.from('properties').select('id').eq('user_id', req.user!.id);
+    const { data: shared } = await supabase.from('property_shares').select('property_id').eq('email', userEmail);
+    const propIds = [...(owned?.map((p: { id: string }) => p.id) || []), ...(shared?.map((s: { property_id: string }) => s.property_id) || [])];
+    if (propIds.length === 0) { res.json({ average: 20000 }); return; }
+    const { data, error } = await supabase.from('bills').select('processing_duration_ms').in('property_id', propIds).not('processing_duration_ms', 'is', null).order('created_at', { ascending: false }).limit(5);
+    if (error || !data || data.length === 0) { res.json({ average: 20000 }); return; }
+    const sum = data.reduce((acc: number, bill: any) => acc + (bill.processing_duration_ms || 0), 0);
+    res.json({ average: Math.round(sum / data.length) || 20000 });
+  } catch (err) { res.json({ average: 20000 }); }
+});
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // GET single bill
 billsRouter.get('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -441,7 +477,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       properties_context: propertiesContext
     });
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
     const model = genAI.getGenerativeModel({ model: modelName });
     
     logger.info(`Starting OCR extraction with ${modelName}...`);
@@ -529,90 +565,4 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
   }
 });
 
-// GET extraction fields
-billsRouter.get('/fields', requireAuth, (_req: AuthenticatedRequest, res: Response): void => {
-  res.json({ fields: EXTRACTION_FIELDS });
-});
-
-// GET /bills/unique-types (Include shared properties)
-billsRouter.get('/unique-types', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const userEmail = req.user!.email?.toLowerCase();
-
-    // 1. Get properties the user owns or is shared with
-    const { data: owned } = await supabase.from('properties').select('id').eq('user_id', req.user!.id);
-    const { data: shared } = await supabase.from('property_shares').select('property_id').eq('email', userEmail);
-    
-    const propIds = [
-      ...(owned?.map((p: { id: string }) => p.id) || []),
-      ...(shared?.map((s: { property_id: string }) => s.property_id) || [])
-    ];
-
-    if (propIds.length === 0) {
-      res.json({ types: [] });
-      return;
-    }
-
-    // 2. Fetch unique types for those properties
-    const { data, error } = await supabase
-      .from('bills')
-      .select('bill_type')
-      .in('property_id', propIds);
-    
-    if (error) throw error;
-    
-    // Extract unique types and filter out null/empty
-    const uniqueTypes = Array.from(new Set(data.map((b: any) => b.bill_type))).filter(Boolean);
-    res.json({ types: uniqueTypes });
-  } catch (err: any) {
-    logger.error('Failed to fetch unique bill types:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET /bills/average-duration (Include shared properties)
-billsRouter.get('/average-duration', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const userEmail = req.user!.email?.toLowerCase();
-
-    // 1. Get properties user has access to
-    const { data: owned } = await supabase.from('properties').select('id').eq('user_id', req.user!.id);
-    const { data: shared } = await supabase.from('property_shares').select('property_id').eq('email', userEmail);
-    
-    const propIds = [
-      ...(owned?.map((p: { id: string }) => p.id) || []),
-      ...(shared?.map((s: { property_id: string }) => s.property_id) || [])
-    ];
-
-    if (propIds.length === 0) {
-      res.json({ average: 20000 });
-      return;
-    }
-
-    // 2. Query bills for those properties
-    const { data, error } = await supabase
-      .from('bills')
-      .select('processing_duration_ms')
-      .in('property_id', propIds)
-      .not('processing_duration_ms', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(5);
-    
-    if (error) {
-      res.json({ average: 20000 });
-      return;
-    }
-    
-    if (!data || data.length === 0) {
-      res.json({ average: 20000 });
-      return;
-    }
-    
-    const sum = data.reduce((acc: number, bill: any) => acc + (bill.processing_duration_ms || 0), 0);
-    const average = Math.round(sum / data.length);
-    
-    res.json({ average: average || 20000 });
-  } catch (err) {
-    res.json({ average: 20000 });
-  }
-});
+// (End of file - unique-types/fields already moved up)
