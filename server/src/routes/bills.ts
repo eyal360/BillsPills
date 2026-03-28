@@ -70,7 +70,7 @@ billsRouter.get('/debug', requireAuth, async (_req: AuthenticatedRequest, res: R
     env: {
       NODE_ENV: process.env.NODE_ENV,
       HAS_GEMINI_KEY: !!process.env.GEMINI_API_KEY,
-      GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-1.5-pro (default)',
+      GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash (default)',
       PORT: process.env.PORT
     },
     files: {},
@@ -86,7 +86,7 @@ billsRouter.get('/debug', requireAuth, async (_req: AuthenticatedRequest, res: R
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-1.5-pro' });
+    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
     diagnosticRes.gemini = 'model_initialized';
   } catch (err: any) {
     diagnosticRes.gemini = `initialization_failed: ${err.message}`;
@@ -509,7 +509,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       properties_context: propertiesContext
     });
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-pro';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     const model = genAI.getGenerativeModel({ model: modelName });
     
     logger.info(`Starting OCR extraction with ${modelName}...`);
