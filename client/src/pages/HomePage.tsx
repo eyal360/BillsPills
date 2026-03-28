@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import type { Property, Bill } from '../types';
 import api from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import { AddPropertyModal } from '../components/AddPropertyModal';
 import { AddBillModal } from '../components/AddBillModal';
 import { PillLoader } from '../components/PillLoader';
@@ -11,6 +12,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import './HomePage.css';
 
 import { PropertyMenu } from '../components/PropertyMenu';
+import { useDialog } from '../contexts/DialogContext';
 
 const PROPERTY_EMOJIS = ['🏠', '🏢', '🏗️', '🏬', '🏰', '🏡', '🏦', '🏪'];
 
@@ -22,6 +24,9 @@ export const HomePage: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [initialPropertyName, setInitialPropertyName] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const { confirm, alert } = useDialog();
+  const [onboardingActive, setOnboardingActive] = useState(false);
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const fetchProperties = async () => {
@@ -45,6 +50,35 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => { fetchProperties(); }, []);
 
+  useEffect(() => {
+    const onboardingKey = `onboarding_completed_${user?.id}`;
+    if (isDataFetched && properties.length === 0 && user?.id && !localStorage.getItem(onboardingKey)) {
+      const showOnboarding = async () => {
+        const confirmed = await confirm({
+          title: 'ברוכים הבאים!',
+          message: 'נמאס לך מהבלאגן בחשבונות הבית?\nיש לנו את התרופה!',
+          actions: [
+            { label: 'יאללה, בוא נתחיל!', type: 'primary' }
+          ]
+        });
+
+        if (confirmed === 0) {
+          setOnboardingActive(true);
+          setShowAddModal(true);
+        } else {
+          // If dismissed early, show tip and finish
+          localStorage.setItem(`onboarding_completed_${user?.id}`, 'true');
+          await alert(
+            'נהדר, אנחנו מוכנים!',
+            'מעכשיו תוכל להעלות חשבונות חדשים בקלות על ידי לחיצה על כפתור \'הוסף חשבון במהירות\' הכחול שבראש העמוד.',
+            '🎉'
+          );
+        }
+      };
+      showOnboarding();
+    }
+  }, [isDataFetched, properties.length, user?.id]);
+
   const handlePropertyAdded = (property: Property) => {
     setProperties(prev => {
       const exists = prev.find(p => p.id === property.id);
@@ -55,6 +89,34 @@ export const HomePage: React.FC = () => {
     });
     setShowAddModal(false);
     setInitialPropertyName('');
+
+    if (onboardingActive) {
+      setTimeout(async () => {
+        const nextAction = await confirm({
+          title: 'הוספת נכס אחר?',
+          message: 'הנכס נוסף בהצלחה!\nהאם ברצונך להוסיף נכס נוסף כעת?',
+          actions: [
+            { label: 'הוסף נכס נוסף', type: 'primary' },
+            { label: 'לא תודה', type: 'ghost' }
+          ]
+        });
+
+        if (nextAction === 0) {
+          setShowAddModal(true);
+        } else {
+          setOnboardingActive(false);
+          localStorage.setItem(`onboarding_completed_${user?.id}`, 'true');
+          // Small delay before final tip to ensure smooth transition
+          setTimeout(() => {
+            alert(
+              'נהדר, אנחנו מוכנים!',
+              'מעכשיו תוכל להעלות חשבונות חדשים בקלות על ידי לחיצה על כפתור \'הוסף חשבון במהירות\' הכחול שבראש העמוד.',
+              '🎉'
+            );
+          }, 100);
+        }
+      }, 500);
+    }
   };
 
   const handlePropertyDeleted = (id: string) => {
@@ -105,7 +167,7 @@ export const HomePage: React.FC = () => {
             disabled={Object.values(processes).length >= 5}
             style={{ zIndex: 10 }}
           >
-            העלאת חשבון חדש
+            הוסף חשבון במהירות
           </button>
         </div>
 
@@ -116,10 +178,10 @@ export const HomePage: React.FC = () => {
               className="property-card card card-interactive"
               onClick={() => navigate(`/property/${prop.id}`)}
             >
-              <PropertyMenu 
-                property={prop} 
-                onUpdate={handlePropertyAdded} 
-                onDelete={handlePropertyDeleted} 
+              <PropertyMenu
+                property={prop}
+                onUpdate={handlePropertyAdded}
+                onDelete={handlePropertyDeleted}
               />
               <div className="property-emoji">
                 {prop.icon || PROPERTY_EMOJIS[idx % PROPERTY_EMOJIS.length]}
@@ -163,10 +225,10 @@ export const HomePage: React.FC = () => {
                     className="property-card card card-interactive archived"
                     onClick={() => navigate(`/property/${prop.id}`)}
                   >
-                    <PropertyMenu 
-                      property={prop} 
-                      onUpdate={handlePropertyAdded} 
-                      onDelete={handlePropertyDeleted} 
+                    <PropertyMenu
+                      property={prop}
+                      onUpdate={handlePropertyAdded}
+                      onDelete={handlePropertyDeleted}
                     />
                     <div className="property-emoji">
                       {prop.icon || PROPERTY_EMOJIS[idx % PROPERTY_EMOJIS.length]}

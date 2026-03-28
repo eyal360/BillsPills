@@ -16,6 +16,7 @@ interface ConfirmationModalProps {
   isPrompt?: boolean;
   promptPlaceholder?: string;
   onPromptChange?: (val: string) => void;
+  requiredText?: string;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -26,7 +27,8 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   icon = '⚠️',
   isPrompt,
   promptPlaceholder,
-  onPromptChange
+  onPromptChange,
+  requiredText
 }) => {
   const [inputValue, setInputValue] = React.useState('');
   return (
@@ -74,7 +76,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               <button
                 key={index}
                 className={`btn btn-full ${action.type ? `btn-${action.type}` : 'btn-primary'}`}
-                disabled={isPrompt && action.type === 'primary' && inputValue.trim().length < 3}
+                disabled={isPrompt && (action.type === 'primary' || action.type === 'danger') && (requiredText ? inputValue !== requiredText : inputValue.trim().length < 1)}
                 onClick={async () => {
                   await action.onClick();
                   onClose();

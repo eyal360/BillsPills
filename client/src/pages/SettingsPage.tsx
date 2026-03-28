@@ -5,14 +5,16 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialog } from '../contexts/DialogContext';
 import { PillIcon } from '../components/PillIcon';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, AlertTriangle } from 'lucide-react';
+import api from '../lib/api';
 import './SettingsPage.css';
 
 export const SettingsPage: React.FC = () => {
   const { theme, setTheme, showChatBubble, toggleChatBubble } = useSettings();
   const { logout } = useAuth();
-  const { confirm } = useDialog();
+  const { confirm, alert } = useDialog();
   const navigate = useNavigate();
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleLogout = async () => {
     const confirmed = await confirm({
@@ -28,6 +30,39 @@ export const SettingsPage: React.FC = () => {
     if (confirmed === 0) {
       logout();
       navigate('/login');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const result = await confirm({
+      title: 'מחיקת חשבון לצמיתות',
+      message: 'שים לב: פעולה זו תמחק לצמיתות את כל המידע שלך, הנכסים שבבעלותך והיסטוריית החשבונות. פעולה זו אינה ניתנת לביטול.\n\nאנא הקלד "שכח אותי" כדי לאשר את המחיקה:',
+      icon: '⚠️',
+      isPrompt: true,
+      promptPlaceholder: 'הקלד "שכח אותי" כאן...',
+      requiredText: 'שכח אותי',
+      actions: [
+        { label: 'מחק את החשבון שלי לצמיתות', type: 'danger' },
+        { label: 'ביטול', type: 'ghost' }
+      ]
+    });
+
+    if (result === 0) {
+      setIsDeleting(true);
+      try {
+        await api.delete('/auth/account');
+        // Clear session immediately so background calls don't use old token
+        logout();
+        setIsDeleting(false);
+        await alert('החשבון נמחק', 'החשבון וכל המידע המשויך אליו נמחקו בהצלחה. להתראות!', '😭');
+        navigate('/login');
+      } catch (err: any) {
+        // Even on partial failure, we should clear the session if the account was likely deleted.
+        logout();
+        setIsDeleting(false);
+        await alert('הערה', 'תהליך המחיקה הושלם בהצלחה. ננתק אותך כעת מהמערכת.', '⚠️');
+        navigate('/login');
+      }
     }
   };
 
@@ -72,6 +107,16 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
+        <button
+          onClick={handleLogout}
+          className="btn btn-secondary btn-full"
+          style={{ marginTop: 'var(--space-lg)', color: '#ef4444', borderColor: '#ef4444', background: 'transparent' }}
+        >
+          התנתק מהמערכת
+        </button>
+
+        <div style={{ height: 'var(--space-xl)' }}></div>
+
         <div className="settings-section card">
           <div className="about-content text-center">
             <div className="mt-sm" style={{ lineHeight: 1.6, color: 'var(--text-primary)' }}>
@@ -108,14 +153,27 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="btn btn-secondary btn-full"
-          style={{ marginTop: 'var(--space-lg)', color: '#ef4444', borderColor: '#ef4444', background: 'transparent' }}
-        >
-          התנתק מהמערכת
-        </button>
+        <div className="danger-zone-section">
+          <div className="danger-zone-title">
+            <AlertTriangle size={16} />
+            אזור מסוכן
+          </div>
+          <button
+            onClick={handleDeleteAccount}
+            className="btn btn-full btn-danger-outline"
+          >
+            מחק חשבון
+          </button>
+        </div>
       </div>
+
+      {isDeleting && (
+        <div className="modal-backdrop" style={{ zIndex: 20000, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+          <div className="spinner" style={{ width: 60, height: 60, borderWidth: 4, marginBottom: '24px' }} />
+          <h3 style={{ color: 'white', fontWeight: 800 }}>מוחק חשבון...</h3>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem' }}>נא לא לסגור את הדף</p>
+        </div>
+      )}
     </Layout>
   );
 };

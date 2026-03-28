@@ -12,6 +12,7 @@ interface DialogOptions {
   isPrompt?: boolean;
   promptPlaceholder?: string;
   onPromptChange?: (val: string) => void;
+  requiredText?: string;
 }
 
 interface DialogContextType {
@@ -88,6 +89,7 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           isPrompt={dialog.isPrompt}
           promptPlaceholder={dialog.promptPlaceholder}
           onPromptChange={dialog.onPromptChange}
+          requiredText={dialog.requiredText}
           actions={dialog.actions.map((action, i) => ({
             ...action,
             onClick: () => handleAction(i)

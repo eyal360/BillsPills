@@ -224,18 +224,18 @@ export const AddPropertyModal: React.FC<Props> = ({ onClose, onAdded, initialNam
 
         <div className="modal-actions">
           {step < 2 ? (
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleNext}>
+            <button className="btn btn-primary btn-lg" style={{ flex: 1 }} onClick={handleNext}>
               הבא ›
             </button>
           ) : (
             <button
-               className="btn btn-primary"
-               style={{ flex: 1 }}
-               onClick={handleSubmit}
-               disabled={loading}
-             >
-               {loading ? <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : editingProperty ? 'עדכן נכס' : 'הוסף נכס'}
-             </button>
+              className="btn btn-primary btn-lg"
+              style={{ flex: 1 }}
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : editingProperty ? 'עדכן נכס' : 'הוסף נכס'}
+            </button>
           )}
         </div>
       </div>

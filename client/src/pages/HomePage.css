@@ -9,10 +9,36 @@
 .global-ocr-btn {
   white-space: nowrap;
   padding: 16px 32px;
-  font-weight: 800;
-  font-size: 1.1rem;
-  box-shadow: 0 8px 30px rgba(8, 166, 119, 0.4);
+  font-weight: 700;
+  font-size: 1.3rem;
+  /* Flowing between brand green and vibrant blues */
+  background: linear-gradient(-45deg, #08a677, #0072ff, #00c6ff, #08a677) !important;
+  background-size: 400% 400% !important;
+  color: white !important;
+  box-shadow: 0 8px 30px rgba(0, 114, 255, 0.4) !important;
   border-radius: var(--radius-xl);
+  border: none !important;
+  animation: gradientFlow 3s ease infinite;
+}
+
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.global-ocr-btn:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 40px rgba(0, 114, 255, 0.5) !important;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .properties-grid {
@@ -22,11 +48,15 @@
 }
 
 @media (min-width: 480px) {
-  .properties-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .properties-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 700px) {
-  .properties-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .properties-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .property-card {
@@ -39,7 +69,14 @@
   padding: var(--space-md);
   aspect-ratio: 1 / 1;
   justify-content: center;
-  min-width: 0; /* Important for grid item shrinking */
+  min-width: 0;
+  /* Important for grid item shrinking */
+  transition: transform var(--transition-base), z-index 0.3s ease;
+}
+
+.property-card:has(.menu-open) {
+  z-index: 1000;
+  overflow: visible !important;
 }
 
 .property-emoji {
@@ -137,24 +174,20 @@
 .archive-divider-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0),
-    var(--border-subtle) 15%,
-    var(--border-subtle) 85%,
-    rgba(255, 255, 255, 0)
-  );
+  background: linear-gradient(to right,
+      rgba(255, 255, 255, 0),
+      var(--border-subtle) 15%,
+      var(--border-subtle) 85%,
+      rgba(255, 255, 255, 0));
 }
 
 /* Light mode override for visible divider */
 :root[data-theme='light'] .archive-divider-line {
-  background: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0),
-    rgba(0, 0, 0, 0.1) 15%,
-    rgba(0, 0, 0, 0.1) 85%,
-    rgba(0, 0, 0, 0.0)
-  );
+  background: linear-gradient(to right,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 0.1) 15%,
+      rgba(0, 0, 0, 0.1) 85%,
+      rgba(0, 0, 0, 0.0));
 }
 
 .archive-title {
@@ -183,4 +216,3 @@
 .properties-grid.archived {
   animation: fadeIn 0.3s ease-out;
 }
-

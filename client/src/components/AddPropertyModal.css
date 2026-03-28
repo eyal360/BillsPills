@@ -16,6 +16,7 @@
 .confirm-card {
   background: var(--bg-surface);
   padding: var(--space-md);
+  border: 1px solid var(--border-subtle);
 }
 
 .confirm-row {
@@ -26,6 +27,12 @@
   border-bottom: 1px solid var(--border-subtle);
   direction: rtl;
   text-align: right;
+  color: var(--text-primary); /* Ensure content is visible */
+}
+
+.confirm-row .text-muted {
+  color: var(--text-secondary) !important; /* Increase label contrast */
+  min-width: 60px;
 }
 
 .confirm-row:last-child {
