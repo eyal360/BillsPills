@@ -64,6 +64,38 @@ billsRouter.get('/average-duration', requireAuth, async (req: AuthenticatedReque
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+// --- DEBUG ENDPOINT ---
+billsRouter.get('/debug', requireAuth, async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const diagnosticRes: any = {
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      HAS_GEMINI_KEY: !!process.env.GEMINI_API_KEY,
+      GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.0-flash (default)',
+      PORT: process.env.PORT
+    },
+    files: {},
+    gemini: 'not_tested'
+  };
+
+  try {
+    const { getPromptTemplate } = require('../lib/prompts');
+    const template = await getPromptTemplate('ocr_extraction');
+    diagnosticRes.files.ocr_extraction_template_size = template.length;
+  } catch (err: any) {
+    diagnosticRes.files.ocr_extraction_error = err.message;
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.0-flash' });
+    diagnosticRes.gemini = 'model_initialized';
+  } catch (err: any) {
+    diagnosticRes.gemini = `initialization_failed: ${err.message}`;
+  }
+
+  res.json(diagnosticRes);
+});
+// --- END DEBUG ---
+
 // GET single bill
 billsRouter.get('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userEmail = req.user!.email?.toLowerCase();
@@ -554,14 +586,12 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       processing_duration_ms: Date.now() - startTimeOCR
     });
   } catch (err: any) {
-    logger.error('Internal OCR processing failure:', {
-      message: err.message,
-      stack: err.stack,
-      response: err.response?.data
+    // User facing error (Return actual error message in debug/dev)
+    const errorMsg = err.message || 'שגיאה בעיבוד התמונה — ניתן להזין נתונים ידנית';
+    res.status(500).json({ 
+      error: errorMsg,
+      details: process.env.NODE_ENV === 'production' ? undefined : err.stack
     });
-    
-    // User facing error
-    res.status(500).json({ error: 'שגיאה בעיבוד התמונה — ניתן להזין נתונים ידנית' });
   }
 });
 
