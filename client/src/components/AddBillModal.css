@@ -227,6 +227,11 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.modal-loading {
+  min-height: 540px !important;
+  padding-top: 80px !important;
+}
+
 .adm-picker-header-button {
   color: var(--brand-primary) !important;
   font-weight: 700 !important;
@@ -245,10 +250,11 @@
 
 .processing-overlay {
   position: absolute;
-  top: 60px;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  border-radius: inherit;
   display: flex;
   flex-direction: column;
   align-items: center;

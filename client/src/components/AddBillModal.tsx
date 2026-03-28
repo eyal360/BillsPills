@@ -91,6 +91,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [isAutomaticPayment, setIsAutomaticPayment] = useState<boolean>(false);
   const [isGeneralLink, setIsGeneralLink] = useState<boolean>(false);
+  const [lastOcrFile, setLastOcrFile] = useState<File | null>(null);
 
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
@@ -219,6 +220,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setCompanyName(null);
       setIsAutomaticPayment(false);
       setIsGeneralLink(false);
+      setLastOcrFile(null);
     }
   }, [activeProcessId, editingBill]); // Trigger on modal opening/switching or when editingBill changes
 
@@ -247,6 +249,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   };
 
   const handleOcr = async (file: File) => {
+    setLastOcrFile(file);
     setOcrLoading(true);
     const pid = addProcess(currentPropertyId);
     setError('');
@@ -358,6 +361,18 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
     } finally {
       setOcrLoading(false);
     }
+  };
+
+  const handleRetryOcr = async () => {
+    if (!lastOcrFile) return;
+
+    const sizeMB = lastOcrFile.size / (1024 * 1024);
+    if (sizeMB > 4.5) {
+      alert('הקובץ גדול מדי', `הקובץ המקורי ("${lastOcrFile.name}") חורג מהגודל המותר (4.5MB). אנא נסה להעלות קובץ אחר.`);
+      return;
+    }
+
+    handleOcr(lastOcrFile);
   };
 
   const handleSubmit = async () => {
@@ -572,7 +587,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
   return (
     <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && handleModalClose()}>
-      <div className="modal">
+      <div className={`modal ${(ocrLoading || processState?.isProcessing) ? 'modal-loading' : ''}`}>
         {(!ocrLoading && (!processState || !processState.isProcessing || processState.step === 'idle' || processState.step === 'completed')) && (
           <div className="modal-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -598,6 +613,22 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
               </h2>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {(ocrUsed || error) && lastOcrFile && !ocrLoading && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleRetryOcr}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '0.8rem',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-secondary)'
+                  }}
+                >
+                  נסה שוב
+                </button>
+              )}
               <button className="modal-close" onClick={handleModalClose}>✕</button>
             </div>
           </div>
@@ -620,11 +651,9 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
               <div className="step-icon" style={{ height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '4.5rem' }}>🧾</span>
               </div>
-              <h3 className="text-center">העלה חשבון או הזן ידנית</h3>
               <button className="btn btn-primary btn-full btn-lg" onClick={() => fileRef.current?.click()} disabled={ocrLoading}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span>העלה חשבון</span>
-                  <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(עד 4.5MB)</span>
+                  <span>העלה חשבון לזיהוי אוטומטי</span>
                 </div>
               </button>
               <input
@@ -670,7 +699,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                   </button>
                 </div>
               )}
-              <button className="btn btn-primary btn-full mt-lg" onClick={() => {
+              <button className="btn btn-primary btn-full btn-lg" onClick={() => {
                 if (!currentPropertyId) {
                   setPropertyError(true);
                   return;
@@ -797,7 +826,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                 </>
               )}
 
-              <button className="btn btn-primary btn-full submit-btn" onClick={handleSubmit} disabled={loading}>
+              <button className="btn btn-primary btn-full submit-btn btn-lg" onClick={handleSubmit} disabled={loading}>
                 {editingBill ? 'שמור שינויים' : 'עדכן חשבון'}
               </button>
             </div>
