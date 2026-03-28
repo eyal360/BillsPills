@@ -106,23 +106,21 @@ export const BillTimeline: React.FC<Props> = ({
               <div key={event.id} className="timeline-item">
                 <div className="timeline-dot-wrapper">
                   <div className="timeline-dot" />
+                  {i === 0 && allEvents.length > 1 && onRevert && (
+                    <button
+                      className="revert-btn-timeline"
+                      onClick={(e) => { e.stopPropagation(); handleRevert(); }}
+                      title="בטל פעולה אחרונה"
+                    >
+                      <Undo2 size={12} />
+                    </button>
+                  )}
                   {i < allEvents.length - 1 && <div className="timeline-line" />}
                 </div>
                 <div className="timeline-content">
-                  <div className="timeline-header">
+                  <div className="timeline-header-stacked">
                     <span className="timeline-event-title">{event.title}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="timeline-date">{formatTs(event.created_at)}</span>
-                      {i === 0 && allEvents.length > 1 && onRevert && (
-                        <button
-                          className="revert-btn"
-                          onClick={(e) => { e.stopPropagation(); handleRevert(); }}
-                          title="בטל פעולה אחרונה"
-                        >
-                          <Undo2 size={14} />
-                        </button>
-                      )}
-                    </div>
+                    <span className="timeline-date">{formatTs(event.created_at)}</span>
                   </div>
                   {event.note && <div className="timeline-note">{event.note}</div>}
                 </div>

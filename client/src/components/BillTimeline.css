@@ -4,7 +4,7 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 16px 28px 16px 16px; /* Increased right padding for revert button */
   margin-top: 12px;
   width: 100%;
   animation: slideDownIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
@@ -13,7 +13,7 @@
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px; /* Reduced from 16px */
 }
 
 @keyframes slideDownIn {
@@ -47,8 +47,8 @@
 
 .timeline-item {
   display: flex;
-  gap: 16px;
-  padding-bottom: 24px;
+  gap: 12px; /* Reduced from 16px */
+  padding-bottom: 20px; /* Reduced from 24px */
 }
 
 .timeline-item:last-child {
@@ -91,6 +91,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.timeline-header-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .timeline-event-title {
@@ -178,34 +184,28 @@
   pointer-events: none;
 }
 
-.revert-btn {
+.revert-btn-timeline {
+  position: absolute;
+  right: -24px; /* Moved to the right of the dot */
+  top: -4px;
   background: rgba(255, 68, 68, 0.08);
   border: 1px solid rgba(255, 68, 68, 0.15);
   color: #ff5252;
   cursor: pointer;
-  padding: 6px;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 6px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-right: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-[data-theme='light'] .revert-btn {
-  background: rgba(255, 0, 0, 0.05);
-  border-color: rgba(255, 0, 0, 0.1);
-  color: #d32f2f;
-}
-
-.revert-btn:hover {
+.revert-btn-timeline:hover {
   background: rgba(255, 68, 68, 0.15);
-  border-color: rgba(255, 68, 68, 0.3);
   transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(255, 68, 68, 0.2);
-  color: #ff1744;
 }
 
-.revert-btn:active {
-  transform: scale(0.95);
+.revert-btn {
+  display: none; /* Hidden as we now use revert-btn-timeline */
 }

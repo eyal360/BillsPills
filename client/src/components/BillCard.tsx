@@ -18,21 +18,25 @@ const HEBREW_MONTHS = [
   'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'
 ];
 
-const formatBillingPeriodName = (startIso?: string, endIso?: string) => {
+const formatBillingPeriodName = (startIso?: string, endIso?: string, noBrackets = false) => {
   if (!startIso) return '';
   const d1 = new Date(startIso);
   const m1 = HEBREW_MONTHS[d1.getMonth()];
-  const yy1 = String(d1.getFullYear()).slice(-2);
+  const yyyy1 = d1.getFullYear();
   
+  let content = '';
   if (endIso) {
     const d2 = new Date(endIso);
     const m2 = HEBREW_MONTHS[d2.getMonth()];
-    const yy2 = String(d2.getFullYear()).slice(-2);
+    const yyyy2 = d2.getFullYear();
     
-    if (m1 === m2) return ` (${m1} ${yy1}')`;
-    return ` (${m1}-${m2} ${yy2}')`;
+    if (m1 === m2) content = `${m1} ${yyyy1}`;
+    else content = `${m1}-${m2} ${yyyy2}`;
+  } else {
+    content = `${m1} ${yyyy1}`;
   }
-  return ` (${m1} ${yy1}')`;
+
+  return noBrackets ? content : ` (${content})`;
 };
 
 const getBillIcon = (type: string) =>
@@ -45,10 +49,10 @@ const formatTsShort = (iso: string) => {
   const d = new Date(iso);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yy = String(d.getFullYear()).slice(-2);
+  const yyyy = d.getFullYear();
   const hh = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
-  return `${dd}/${mm}/${yy} ${hh}:${min}`;
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 };
 
 export const BillCard: React.FC<Props> = ({
@@ -203,9 +207,13 @@ export const BillCard: React.FC<Props> = ({
             </div>
             <div style={{ textAlign: 'right' }}>
               <div className="bill-type-pill text-sm">
-                {bill.bill_type}{formatBillingPeriodName(bill.billing_period_start, bill.billing_period_end)}
+                {bill.bill_type}
               </div>
-              <div className="bill-date-pill">{formatTsShort(bill.created_at)}</div>
+              <div className="bill-date-pill">
+                {bill.billing_period_start 
+                  ? formatBillingPeriodName(bill.billing_period_start, bill.billing_period_end, true)
+                  : formatTsShort(bill.created_at)}
+              </div>
             </div>
           </div>
 
