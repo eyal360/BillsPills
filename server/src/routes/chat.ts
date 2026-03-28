@@ -158,9 +158,9 @@ chatRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: Respons
     ]).catch(dbErr => logger.error('Failed to save chat history', dbErr));
 
     res.json({ reply });
-  } catch (err) {
-    logger.error('Chat error:', err);
-    res.status(500).json({ error: 'Chat failed' });
+  } catch (err: any) {
+    logger.error('Chat error:', { message: err.message, stack: err.stack, full: err });
+    res.status(500).json({ error: 'Chat failed — ' + (err.message || '') });
   }
 });
 

@@ -64,6 +64,62 @@ billsRouter.get('/average-duration', requireAuth, async (req: AuthenticatedReque
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+// --- DUPLICATE CHECK ---
+billsRouter.post('/check-duplicate', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { property_id, bill_type, amount, billing_period_start, billing_period_end, bill_number, current_bill_id } = req.body;
+
+  try {
+    // 1. Start with exact bill number match (if available) - Strongest indicator
+    if (bill_number) {
+      const { data: exactMatch } = await supabase
+        .from('bills')
+        .select('*')
+        .eq('property_id', property_id)
+        // Check for common extraction keys in JSONB
+        .or(`extracted_data->>bill_number.eq.${bill_number},extracted_data->>bill_id.eq.${bill_number}`)
+        .neq('id', current_bill_id || '00000000-0000-0000-0000-000000000000')
+        .limit(1)
+        .maybeSingle();
+        
+      if (exactMatch) {
+         res.json({ duplicate: exactMatch });
+         return;
+      }
+    }
+
+    // 2. High probability match: Same Property + Type + Amount + Period Overlap
+    // We search for bills with the same amount AND at least one matching period boundary
+    let query = supabase
+      .from('bills')
+      .select('*')
+      .eq('property_id', property_id)
+      .eq('bill_type', bill_type)
+      .eq('amount', amount)
+      .neq('id', current_bill_id || '00000000-0000-0000-0000-000000000000');
+
+    // Add period filter if they exist
+    if (billing_period_start || billing_period_end) {
+      const periodFilters = [];
+      if (billing_period_start) periodFilters.push(`billing_period_start.eq.${billing_period_start}`);
+      if (billing_period_end) periodFilters.push(`billing_period_end.eq.${billing_period_end}`);
+      query = query.or(periodFilters.join(','));
+    }
+
+    const { data: matches } = await query.limit(1).maybeSingle();
+
+    if (matches) {
+      res.json({ duplicate: matches });
+      return;
+    }
+
+    res.json({ duplicate: null });
+  } catch (err: any) {
+    logger.error('Duplicate check failed:', err.message);
+    res.json({ duplicate: null }); // Don't block the user if check fails
+  }
+});
+// --- END DUPLICATE CHECK ---
+
 
 
 // GET single bill
@@ -555,6 +611,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
     });
   } catch (err: any) {
     // User facing error (Return actual error message in debug/dev)
+    logger.error('OCR error full object:', { message: err.message, stack: err.stack, details: err });
     const errorMsg = err.message || 'שגיאה בעיבוד התמונה — ניתן להזין נתונים ידנית';
     res.status(500).json({ 
       error: errorMsg

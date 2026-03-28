@@ -366,9 +366,43 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
     if (hasError) return;
 
     try {
-      setLoading(true);
       setError('');
 
+      // --- DUPLICATE CHECK ---
+      try {
+        const billNumber = (extractedData as any)?.bill_number || (extractedData as any)?.bill_id || (extractedData as any)?.invoice_number;
+        const { data: checkRes } = await api.post('/bills/check-duplicate', {
+          property_id: currentPropertyId,
+          bill_type: billType,
+          amount: totalAmount,
+          billing_period_start: startDate?.toISOString(),
+          billing_period_end: endDate?.toISOString(),
+          bill_number: billNumber,
+          current_bill_id: editingBill?.id
+        });
+
+        if (checkRes.duplicate) {
+          const confirmed = await confirm({
+            title: '⚠️ חשבון דומה כבר קיים',
+            message: `נראה שכבר קיים חשבון ${billType} בסכום של ₪${totalAmount} בתאריכים אלו. האם להמשיך בשמירה בכל זאת?`,
+            icon: '🧾',
+            actions: [
+              { label: 'כן, שומר', type: 'primary' },
+              { label: 'ביטול', type: 'ghost' }
+            ]
+          });
+
+          if (confirmed !== 0) {
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Duplicate check failed', e);
+        // Don't block the user if the check itself fails
+      }
+      // --- END DUPLICATE CHECK ---
+
+      setLoading(true);
       let finalStatus = status;
       let finalPaidAmount: number | null = null;
 
@@ -470,16 +504,16 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
       setTimeout(() => {
         if (activeProcessId) removeProcess(activeProcessId);
+        setLoading(false);
         onAdded(res.data);
       }, 1000);
 
     } catch (err: any) {
+      setLoading(false);
       console.error('Save bill error:', err);
       const msg = err.response?.data?.error || 'אירעה שגיאה בשמירת החשבון';
       setError(msg);
       if (activeProcessId) updateProcess(activeProcessId, { error: msg, isProcessing: false });
-    } finally {
-      setLoading(false);
     }
   };
 
