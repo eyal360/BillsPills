@@ -7,8 +7,9 @@ export async function getPromptTemplate(
   variables: Record<string, string> = {}
 ): Promise<string> {
   try {
-    // In Vercel and local root execution, prompts are in the 'prompts/' directory from the root
-    const promptPath = path.resolve(process.cwd(), 'prompts', `${templateName}.md`);
+    // Robust path resolution: handle both root execution and server-subdir execution
+    const rootDir = process.cwd().endsWith('server') ? path.join(process.cwd(), '..') : process.cwd();
+    const promptPath = path.resolve(rootDir, 'prompts', `${templateName}.md`);
     let content = await fs.readFile(promptPath, 'utf-8');
 
     // Dynamically inject values

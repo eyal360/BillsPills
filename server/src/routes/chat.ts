@@ -102,7 +102,7 @@ chatRouter.post('/', requireAuth, async (req: AuthenticatedRequest, res: Respons
       context_data: contextData + ragContext
     });
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
     const model = genAI.getGenerativeModel({ 
       model: modelName,
       systemInstruction: systemPrompt
@@ -178,7 +178,7 @@ chatRouter.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response
     }
 
     // Generate unique short welcome message if no history
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
     const model = genAI.getGenerativeModel({ 
       model: modelName,
       systemInstruction: 'You are a robotic financial assistant inside a bills tracking app. Write a very short, welcoming, and unique opening sentence in Hebrew asking the user how you can help them right now. Do not use any markdown.'
@@ -199,7 +199,7 @@ chatRouter.delete('/', requireAuth, async (req: AuthenticatedRequest, res: Respo
     await supabase.from('chat_history').delete().eq('user_id', req.user!.id);
     
     // Generate new welcome
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
     const model = genAI.getGenerativeModel({ 
       model: modelName,
       systemInstruction: 'You are a robotic financial assistant inside a bills tracking app. Write a very short, positive, and unique opening sentence in Hebrew asking the user how you can help them right now, acknowledging the chat was reset. Do not use any markdown.'
