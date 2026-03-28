@@ -8,7 +8,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const billsRouter = Router();
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // Fields to extract from bills (extensible list)
@@ -403,9 +403,9 @@ billsRouter.delete('/:id/events/last', requireAuth, async (req: AuthenticatedReq
   }
 });
 
-// POST OCR — upload image and extract bill data
 billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  logger.info('OCR Handler entered', { file: req.file?.originalname, size: req.file?.size });
+  const fileSizeMB = req.file ? (req.file.size / (1024 * 1024)).toFixed(2) : '0';
+  logger.info(`OCR Handler entered - File: ${req.file?.originalname}, Size: ${fileSizeMB} MB, Mimetype: ${req.file?.mimetype}`);
   if (!req.file) {
     res.status(400).json({ error: 'No file uploaded' });
     return;

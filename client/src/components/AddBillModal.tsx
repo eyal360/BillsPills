@@ -56,6 +56,7 @@ import { BILL_TYPES, APP_MESSAGES, BILL_STATUSES } from '../lib/constants';
 import { PillLoader } from './PillLoader';
 import { useBillProcess } from '../contexts/BillProcessContext';
 import { useDialog } from '../contexts/DialogContext';
+import { processFileForUpload } from '../lib/imageCompression';
 import './AddBillModal.css';
 
 interface Props {
@@ -244,9 +245,19 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
     setError('');
 
     try {
-      updateProcess(pid, { step: 'analyzing', progress: 20 });
+      updateProcess(pid, { step: 'analyzing', progress: 10 });
+      
+      // Client-side compression and validation
+      let finalFile: File = file;
+      try {
+        finalFile = await processFileForUpload(file);
+      } catch (e: any) {
+        throw new Error(e.message);
+      }
+
+      updateProcess(pid, { step: 'extracting', progress: 30 });
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', finalFile);
       if (allProperties.length > 0) {
         formData.append('properties', JSON.stringify(allProperties));
       }
@@ -539,7 +550,10 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
               </div>
               <h3 className="text-center">העלה חשבון או הזן ידנית</h3>
               <button className="btn btn-primary btn-full btn-lg" onClick={() => fileRef.current?.click()} disabled={ocrLoading}>
-                העלה חשבון
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span>העלה חשבון</span>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(עד 4.5MB)</span>
+                </div>
               </button>
               <input
                 type="file"
