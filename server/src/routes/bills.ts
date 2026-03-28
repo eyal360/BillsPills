@@ -4,7 +4,6 @@ import { logger } from '../lib/logger';
 import { getPromptTemplate } from '../lib/prompts';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabase } from '../lib/supabase';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const billsRouter = Router();
 
@@ -62,7 +61,6 @@ billsRouter.get('/average-duration', requireAuth, async (req: AuthenticatedReque
 });
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // --- DUPLICATE CHECK ---
 billsRouter.post('/check-duplicate', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -76,7 +74,7 @@ billsRouter.post('/check-duplicate', requireAuth, async (req: AuthenticatedReque
         .select('*')
         .eq('property_id', property_id)
         // Check for common extraction keys in JSONB
-        .or(`extracted_data->>bill_number.eq.${bill_number},extracted_data->>bill_id.eq.${bill_number}`)
+        .or(`extracted_data->>bill_number.eq.${bill_number},extracted_data->>bill_id.eq.${bill_number},extracted_data->>invoice_number.eq.${bill_number},extracted_data->>reference.eq.${bill_number}`)
         .neq('id', current_bill_id || '00000000-0000-0000-0000-000000000000')
         .limit(1)
         .maybeSingle();
@@ -97,17 +95,25 @@ billsRouter.post('/check-duplicate', requireAuth, async (req: AuthenticatedReque
       .eq('amount', amount)
       .neq('id', current_bill_id || '00000000-0000-0000-0000-000000000000');
 
-    // Add period filter if they exist
+    // Add period filter if they exist: Match by DATE only (YYYY-MM-DD) to escape timezone/time-of-day mismatches
     if (billing_period_start || billing_period_end) {
       const periodFilters = [];
-      if (billing_period_start) periodFilters.push(`billing_period_start.eq.${billing_period_start}`);
-      if (billing_period_end) periodFilters.push(`billing_period_end.eq.${billing_period_end}`);
+      if (billing_period_start) {
+        const dateOnly = billing_period_start.split('T')[0];
+        periodFilters.push(`billing_period_start.gte.${dateOnly}T00:00:00,billing_period_start.lte.${dateOnly}T23:59:59`);
+      }
+      if (billing_period_end) {
+        const dateOnly = billing_period_end.split('T')[0];
+        periodFilters.push(`billing_period_end.gte.${dateOnly}T00:00:00,billing_period_end.lte.${dateOnly}T23:59:59`);
+      }
       query = query.or(periodFilters.join(','));
     }
 
-    const { data: matches } = await query.limit(1).maybeSingle();
+    const { data: matches, error: matchError } = await query.limit(1).maybeSingle();
+    if (matchError) logger.error('Duplicate check query error:', matchError);
 
     if (matches) {
+      logger.info(`Duplicate found for amount ${amount} and type ${bill_type}`);
       res.json({ duplicate: matches });
       return;
     }
@@ -536,27 +542,44 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
     });
 
     const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-    const model = genAI.getGenerativeModel({ model: modelName });
+    const apiKey = process.env.GEMINI_API_KEY || '';
     
-    logger.info(`Starting OCR extraction with ${modelName}...`);
+    // Bypass SDK's internal fetch issues in Node.js by using global fetch
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
     
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: mimeType
-        }
-      }
-    ]);
+    const fetchStartTime = Date.now();
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: base64Image,
+                mimeType: mimeType
+              }
+            }
+          ]
+        }]
+      })
+    });
 
-    const content = result.response.text() || '{}';
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`[REST API Error]: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data: any = await response.json();
+    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('No valid JSON found in AI response');
+      logger.error('No JSON found in OCR content:', content);
+      throw new Error('לא זוהה פורמט נתונים תקין בתמונה');
     }
-
+    
     const extracted = JSON.parse(jsonMatch[0]);
     
     // Validate bill_type against known list
@@ -581,17 +604,27 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
     let embedding: number[] | null = null;
     try {
       const embeddingModelName = process.env.GEMINI_EMBEDDING_MODEL || 'models/gemini-embedding-2-preview';
-      const embeddingModel = genAI.getGenerativeModel({ model: embeddingModelName });
       
-      const contentToEmbed = `סוג חשבון: ${billType}\nסכום: ${amount}\nנתונים שחולצו: ${JSON.stringify(extracted.extracted_data || extracted)}`;
+      // Minimal content for faster embedding
+      const contentToEmbed = `סוג: ${billType} | סכום: ${amount} | מציג: ${JSON.stringify(extracted.extracted_data || extracted).substring(0, 500)}`;
       
-      
-      const embedResult = await embeddingModel.embedContent({
-        content: { role: 'user', parts: [{ text: contentToEmbed }] },
-        taskType: 'RETRIEVAL_DOCUMENT' as any,
+      const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${embeddingModelName}:embedContent?key=${apiKey}`;
+      const embedRes = await fetch(embedUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: { parts: [{ text: contentToEmbed }] },
+          taskType: 'RETRIEVAL_DOCUMENT'
+        }),
+        signal: AbortSignal.timeout(15000)
       });
-      
-      embedding = embedResult.embedding.values;
+
+      if (!embedRes.ok) {
+        throw new Error(`Embedding request failed: ${embedRes.statusText}`);
+      }
+
+      const embedData: any = await embedRes.json();
+      embedding = embedData.embedding.values;
     } catch (embedErr: any) {
       logger.error('Embedding generation failure during OCR:', embedErr.message);
       // We don't fail the whole OCR if embedding fails, but we log it
@@ -610,8 +643,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       processing_duration_ms: Date.now() - startTimeOCR
     });
   } catch (err: any) {
-    // User facing error (Return actual error message in debug/dev)
-    logger.error('OCR error full object:', { message: err.message, stack: err.stack, details: err });
+    logger.error('OCR error:', { message: err.message, stack: err.stack });
     const errorMsg = err.message || 'שגיאה בעיבוד התמונה — ניתן להזין נתונים ידנית';
     res.status(500).json({ 
       error: errorMsg

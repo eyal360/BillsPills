@@ -51,6 +51,16 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.get('/api/test-connection', async (_req, res) => {
+  try {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + process.env.GEMINI_API_KEY);
+    const data = await response.json();
+    res.json({ status: 'ok', data });
+  } catch (err: any) {
+    res.status(500).json({ status: 'failed', error: err.message, stack: err.stack });
+  }
+});
+
 app.listen(PORT, () => {
   logger.info(`🚀 BillsPills server running on port ${PORT}`);
 });

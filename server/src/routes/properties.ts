@@ -2,10 +2,7 @@ import { Router, Response } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export const propertiesRouter = Router();
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // GET all properties for current user (owned and shared)
 propertiesRouter.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -290,19 +287,29 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
   // --- RAG: Generate and store embedding ---
   try {
     const embeddingModelName = process.env.GEMINI_EMBEDDING_MODEL || 'models/gemini-embedding-2-preview';
-    const embeddingModel = genAI.getGenerativeModel({ model: embeddingModelName });
+    const apiKey = process.env.GEMINI_API_KEY || '';
     
     // Create a searchable text representation of the bill
     const contentToEmbed = `סוג חשבון: ${bill_type}\nסכום: ${amount}\nנתונים שחולצו: ${JSON.stringify(extracted_data)}`;
     
-    logger.info(`Generating embedding for bill ${data.id} using ${embeddingModelName}...`);
+    logger.info(`Generating embedding for bill ${data.id} using ${embeddingModelName} (Direct REST)...`);
     
-    const embedResult = await embeddingModel.embedContent({
-      content: { role: 'user', parts: [{ text: contentToEmbed }] },
-      taskType: 'RETRIEVAL_DOCUMENT' as any,
+    const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${embeddingModelName}:embedContent?key=${apiKey}`;
+    const embedRes = await fetch(embedUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: { parts: [{ text: contentToEmbed }] },
+        taskType: 'RETRIEVAL_DOCUMENT'
+      })
     });
-    
-    const embedding = embedResult.embedding.values;
+
+    if (!embedRes.ok) {
+      throw new Error(`Embedding request failed: ${embedRes.statusText}`);
+    }
+
+    const embedData: any = await embedRes.json();
+    const embedding = embedData.embedding.values;
 
     if (!embedding || embedding.length === 0) {
       throw new Error('Generated embedding is empty');

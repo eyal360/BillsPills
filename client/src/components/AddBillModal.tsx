@@ -246,7 +246,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
     try {
       updateProcess(pid, { step: 'analyzing', progress: 10 });
-      
+
       // Client-side compression and validation
       let finalFile: File = file;
       try {
@@ -359,7 +359,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
     if (!billType) { setBillTypeError(true); hasError = true; }
     const totalAmount = parseFloat(amount);
     if (!amount || isNaN(totalAmount)) { setAmountError(true); hasError = true; }
-    
+
     if (startDate && startDate > new Date()) { setError('תאריך ההתחלה לא יכול להיות בעתיד'); hasError = true; }
     if (endDate && endDate > new Date()) { setError('תאריך הסיום לא יכול להיות בעתיד'); hasError = true; }
 
@@ -387,7 +387,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
             message: `נראה שכבר קיים חשבון ${billType} בסכום של ₪${totalAmount} בתאריכים אלו. האם להמשיך בשמירה בכל זאת?`,
             icon: '🧾',
             actions: [
-              { label: 'כן, שומר', type: 'primary' },
+              { label: 'כן, שמור', type: 'primary' },
               { label: 'ביטול', type: 'ghost' }
             ]
           });
@@ -396,9 +396,13 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
             return;
           }
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn('Duplicate check failed', e);
-        // Don't block the user if the check itself fails
+        // We log more details to console to help debugging in production
+        const { property_id, bill_type, amount, bill_number } = {
+          property_id: currentPropertyId, bill_type: billType, amount: totalAmount, bill_number: (extractedData as any)?.bill_number
+        };
+        console.debug('Duplicate check inputs:', { property_id, bill_type, amount, bill_number });
       }
       // --- END DUPLICATE CHECK ---
 
@@ -693,12 +697,12 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                   <input ref={amountRef} type="number" inputMode="decimal" className={`floating-input ${amountError ? 'error' : ''} ${ocrUsed && !amount && !ocrFields.has('amount') ? 'warning' : ''}`} placeholder=" " value={amount} onChange={e => { setAmount(e.target.value); if (amountError) setAmountError(false); }} dir="rtl" style={{ textAlign: 'right' }} />
                   <label className="floating-label">סכום חשבון *</label>
                 </div>
-                <button 
+                <button
                   className={`btn note-trigger-btn ${note ? 'has-note' : ''}`}
                   onClick={() => { setTempNote(note); setShowNoteModal(true); }}
-                  style={{ 
-                    height: '56px', 
-                    padding: '0 12px', 
+                  style={{
+                    height: '56px',
+                    padding: '0 12px',
                     background: note ? 'var(--brand-primary)' : 'rgba(255, 255, 255, 0.05)',
                     color: note ? 'white' : 'var(--text-secondary)',
                     borderRadius: 'var(--radius-md)',
@@ -803,35 +807,35 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
               )}
             </div>
           </div>
-          )}
-          {showNoteModal && (
-            <div className="processing-overlay" style={{ zIndex: 10001 }} onClick={() => setShowNoteModal(false)}>
-              <div className="processing-content card" style={{ maxWidth: '300px', width: '90%', padding: '20px' }} onClick={e => e.stopPropagation()}>
-                <h4 style={{ marginBottom: '16px', textAlign: 'center' }}>📝 הוספת הערה לחשבון</h4>
-                <textarea 
-                  className="floating-input"
-                  style={{ 
-                    height: '100px', 
-                    width: '100%', 
-                    borderRadius: '8px', 
-                    padding: '12px',
-                    marginBottom: '16px',
-                    borderColor: 'var(--border-subtle)',
-                    fontSize: '0.95rem'
-                  }}
-                  placeholder="כתוב כאן הערה..."
-                  value={tempNote}
-                  onChange={e => setTempNote(e.target.value)}
-                  autoFocus
-                  dir="rtl"
-                />
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="btn btn-primary btn-full" onClick={() => { setNote(tempNote); setShowNoteModal(false); }}>שמור הערה</button>
-                  <button className="btn btn-ghost btn-full" onClick={() => setShowNoteModal(false)}>ביטול</button>
-                </div>
+        )}
+        {showNoteModal && (
+          <div className="processing-overlay" style={{ zIndex: 10001 }} onClick={() => setShowNoteModal(false)}>
+            <div className="processing-content card" style={{ maxWidth: '300px', width: '90%', padding: '20px' }} onClick={e => e.stopPropagation()}>
+              <h4 style={{ marginBottom: '16px', textAlign: 'center' }}>📝 הוספת הערה לחשבון</h4>
+              <textarea
+                className="floating-input"
+                style={{
+                  height: '100px',
+                  width: '100%',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '16px',
+                  borderColor: 'var(--border-subtle)',
+                  fontSize: '0.95rem'
+                }}
+                placeholder="כתוב כאן הערה..."
+                value={tempNote}
+                onChange={e => setTempNote(e.target.value)}
+                autoFocus
+                dir="rtl"
+              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn btn-primary btn-full" onClick={() => { setNote(tempNote); setShowNoteModal(false); }}>שמור הערה</button>
+                <button className="btn btn-ghost btn-full" onClick={() => setShowNoteModal(false)}>ביטול</button>
               </div>
             </div>
-          )}
+          </div>
+        )}
       </div>
     </div>
   );
