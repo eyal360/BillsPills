@@ -17,7 +17,7 @@ import { useDialog } from '../contexts/DialogContext';
 const PROPERTY_EMOJIS = ['🏠', '🏢', '🏗️', '🏬', '🏰', '🏡', '🏦', '🏪'];
 
 export const HomePage: React.FC = () => {
-  const { processes, activeProcessId, openModal } = useBillProcess();
+  const { processes, activeProcessId, openModal, updateProcess } = useBillProcess();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDataFetched, setIsDataFetched] = useState(false);
@@ -26,6 +26,7 @@ export const HomePage: React.FC = () => {
   const [showArchived, setShowArchived] = useState(false);
   const { confirm, alert } = useDialog();
   const [onboardingActive, setOnboardingActive] = useState(false);
+  const [suspendedProcessId, setSuspendedProcessId] = useState<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -89,6 +90,16 @@ export const HomePage: React.FC = () => {
     });
     setShowAddModal(false);
     setInitialPropertyName('');
+    
+    // If we had a bill process waiting for this property, resume it
+    if (suspendedProcessId) {
+      updateProcess(suspendedProcessId, { propertyId: property.id });
+      setTimeout(() => {
+        openModal(suspendedProcessId);
+        setSuspendedProcessId(null);
+      }, 500);
+      return;
+    }
 
     if (onboardingActive) {
       setTimeout(async () => {
@@ -127,8 +138,9 @@ export const HomePage: React.FC = () => {
     navigate(`/property/${bill.property_id}`);
   };
 
-  const onRequestAddProperty = (name: string) => {
+  const onRequestAddProperty = (name: string, processId?: string) => {
     setInitialPropertyName(name);
+    if (processId) setSuspendedProcessId(processId);
     setShowAddModal(true);
   };
 

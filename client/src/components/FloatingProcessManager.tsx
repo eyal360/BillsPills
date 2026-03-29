@@ -3,9 +3,9 @@ import { useBillProcess, type BillProcessState } from '../contexts/BillProcessCo
 import './FloatingProcessManager.css';
 
 export const FloatingProcessManager: React.FC = () => {
-  const { processes, removeProcess, openModal } = useBillProcess();
+  const { processes, removeProcess, openModal, activeProcessId } = useBillProcess();
 
-  const activeProcesses = Object.values(processes).filter(p => p.minimized);
+  const activeProcesses = Object.values(processes).filter(p => p.minimized && p.id !== activeProcessId);
 
   if (activeProcesses.length === 0) return null;
 

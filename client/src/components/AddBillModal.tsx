@@ -65,7 +65,7 @@ interface Props {
   onClose: () => void;
   onAdded: (bill: Bill) => void;
   allProperties?: Property[];
-  onRequestAddProperty?: (name: string) => void;
+  onRequestAddProperty?: (name: string, processId?: string) => void;
 }
 
 export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose, onAdded, allProperties = [], onRequestAddProperty }) => {
@@ -110,6 +110,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [tempNote, setTempNote] = useState('');
   const [customBillTypes, setCustomBillTypes] = useState<string[]>([]);
+  const [hidePropertyWarning, setHidePropertyWarning] = useState(false);
 
   const { confirm, prompt, alert } = useDialog();
 
@@ -187,7 +188,10 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
           }
         }
 
-        if (data.matched_property_id) {
+        if (processState.propertyId) {
+          setCurrentPropertyId(processState.propertyId);
+          setRecognizedPropertyName('');
+        } else if (data.matched_property_id) {
           setCurrentPropertyId(data.matched_property_id);
           setRecognizedPropertyName('');
         } else {
@@ -198,7 +202,8 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
 
       // If ocr results are present, skip to step 3 (or 2 if no property)
       if (processState.step === 'idle' || processState.step === 'completed') {
-        if (processState.propertyId || currentPropertyId) setStep(3); else setStep(2);
+        const hasPropId = processState.propertyId || currentPropertyId;
+        if (hasPropId) setStep(3); else setStep(2);
       }
     } else {
       // Re-opening "New" - RESET EVERYTHING
@@ -209,6 +214,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setStatus('paid');
       setExtractedData({});
       setRecognizedPropertyName('');
+      setHidePropertyWarning(false);
       setEmbedding(null);
       setStartDate(null);
       setEndDate(null);
@@ -222,7 +228,21 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setIsGeneralLink(false);
       setLastOcrFile(null);
     }
-  }, [activeProcessId, editingBill]); // Trigger on modal opening/switching or when editingBill changes
+  }, [activeProcessId, editingBill, processState]); // Trigger when these change
+
+  // Auto-match property if new ones are added or if recognition was pending
+  useEffect(() => {
+    if (recognizedPropertyName && !currentPropertyId && allProperties.length > 0 && !hidePropertyWarning) {
+      const match = allProperties.find(p => 
+        p.name?.trim() === recognizedPropertyName?.trim() || 
+        p.address?.trim() === recognizedPropertyName?.trim()
+      );
+      if (match) {
+        setCurrentPropertyId(match.id);
+        setStep(3);
+      }
+    }
+  }, [allProperties, recognizedPropertyName, currentPropertyId, hidePropertyWarning]);
 
   // Date helpers
   const handleStartDateSelect = (val: Date) => {
@@ -666,8 +686,31 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
               <button className="btn btn-secondary btn-full btn-lg" style={{ marginTop: '12px' }} onClick={() => { if (!propertyId) setStep(2); else setStep(3); }}>הזן נתונים ידנית</button>
             </div>
           ) : step === 2 ? (
-            <div className="form-container">
+            <div className="form-container" style={{ position: 'relative', minHeight: '380px' }}>
               <h3 className="mb-md">שיוך לנכס</h3>
+              
+              {(recognizedPropertyName && hidePropertyWarning && !currentPropertyId) && (
+                <div style={{ 
+                  color: '#0072ff', 
+                  background: 'rgba(0,114,255,0.08)', 
+                  padding: '14px', 
+                  borderRadius: '12px', 
+                  marginBottom: '20px', 
+                  fontSize: '0.9rem',
+                  border: '1px solid rgba(0,114,255,0.2)',
+                  display: 'flex',
+                  gap: '10px',
+                  alignItems: 'flex-start'
+                }}>
+                  <span style={{ fontSize: '1.2rem' }}>ℹ️</span>
+                  <div>
+                    זיהינו את הכתובת <strong>"{recognizedPropertyName}"</strong>, אך היא לא קיימת במערכת.
+                    <br />
+                    <span style={{ opacity: 0.8, fontSize: '0.85rem' }}>בחר נכס מרשימת הנכסים שלך כדי להמשיך.</span>
+                  </div>
+                </div>
+              )}
+
               <div className="floating-group has-value">
                 <CustomSelect
                   value={currentPropertyId}
@@ -677,35 +720,77 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
                   error={propertyError}
                 />
               </div>
-              {recognizedPropertyName && !currentPropertyId && (
-                <div className="mt-md" style={{ background: 'rgba(255, 77, 77, 0.1)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 77, 77, 0.2)' }}>
-                  <div className="error-text" style={{ color: '#ff4d4d', fontSize: '0.9rem', fontWeight: 600, marginBottom: '8px' }}>
-                    ⚠️ זוהה נכס "{recognizedPropertyName}" אבל הוא לא קיים במערכת
+
+              <div style={{ marginTop: 'auto', width: '100%' }}>
+                <button className="btn btn-primary btn-full btn-lg" onClick={() => {
+                  if (!currentPropertyId) {
+                    setPropertyError(true);
+                    return;
+                  }
+                  setStep(3);
+                }}>המשך לפרטי חשבון</button>
+              </div>
+
+              {recognizedPropertyName && !currentPropertyId && !hidePropertyWarning && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '0px',
+                  left: '-10px',
+                  right: '-10px',
+                  background: 'rgba(0, 114, 255, 0.98)',
+                  backdropFilter: 'blur(12px)',
+                  padding: '24px',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  zIndex: 10,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  textAlign: 'center',
+                  boxShadow: '0 10px 40px rgba(0, 50, 150, 0.4)',
+                  animation: 'slideUp 0.3s ease-out'
+                }}>
+                  <div style={{ fontSize: '3.5rem', marginBottom: '8px' }}>
+                    ⚠️
                   </div>
+                  <div style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 900 }}>
+                    כתובת זו לא קיימת בנכסים שלך
+                  </div>
+                  <div style={{ color: 'rgba(255,255,255,0.95)', fontSize: '0.95rem', marginBottom: '12px' }}>
+                    זיהינו את הכתובת: <br /> <strong>"{recognizedPropertyName}"</strong>
+                  </div>
+
                   <button
-                    className="btn btn-secondary btn-sm"
-                    style={{ width: '100%', border: '1px solid #ff4d4d', color: '#ff4d4d' }}
+                    className="btn"
+                    style={{
+                      background: '#fff',
+                      color: '#0072ff',
+                      fontWeight: 900,
+                      border: 'none',
+                      width: '100%',
+                      padding: '16px',
+                      fontSize: '1.3rem',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
                     onClick={() => {
-                      if (activeProcessId) {
-                        updateProcess(activeProcessId, { minimized: true });
-                      }
                       if (onRequestAddProperty) {
-                        onRequestAddProperty(recognizedPropertyName);
+                        onRequestAddProperty(recognizedPropertyName, activeProcessId || undefined);
                       }
                       closeModal();
                     }}
                   >
-                    הוסף את "{recognizedPropertyName}" כנכס חדש
+                    הוסף כתובת זו כנכס חדש
+                  </button>
+
+                  <button
+                    className="btn btn-ghost"
+                    style={{ color: '#fff', fontSize: '0.9rem', opacity: 0.9, marginTop: '4px' }}
+                    onClick={() => setHidePropertyWarning(true)}
+                  >
+                    × דלג והמשך ידנית
                   </button>
                 </div>
               )}
-              <button className="btn btn-primary btn-full btn-lg" onClick={() => {
-                if (!currentPropertyId) {
-                  setPropertyError(true);
-                  return;
-                }
-                setStep(3);
-              }}>המשך לפרטי חשבון</button>
             </div>
           ) : (
             <div className="form-container">

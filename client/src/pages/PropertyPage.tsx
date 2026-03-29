@@ -50,6 +50,7 @@ export const PropertyPage: React.FC = () => {
   };
   const [showEditPropertyModal, setShowEditPropertyModal] = useState(false);
   const [partialError, setPartialError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isPaidSectionExpanded, setIsPaidSectionExpanded] = useState(false);
   const [expandedYears, setExpandedYears] = useState<Record<number, boolean>>({});
   const { confirm } = useDialog();
@@ -363,12 +364,15 @@ export const PropertyPage: React.FC = () => {
     });
 
     if (confirmed !== 0) return;
+    setIsDeleting(true);
     try {
       await api.delete(`/bills/${billId}`);
       setBills(prev => prev.filter(b => b.id !== billId));
       setExpandedBillId(null);
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -657,6 +661,22 @@ export const PropertyPage: React.FC = () => {
           }}
           editingProperty={property}
         />
+      )}
+
+      {isDeleting && (
+        <div className="modal-backdrop" style={{ 
+          zIndex: 20000, 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          textAlign: 'center',
+          backdropFilter: 'blur(8px)',
+          background: 'rgba(0,0,0,0.5)'
+        }}>
+          <div className="spinner" style={{ width: 60, height: 60, borderWidth: 4, marginBottom: '24px' }} />
+          <h3 style={{ color: 'white', fontWeight: 800 }}>מוחק חשבון...</h3>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem' }}>נא לא לסגור את הדף</p>
+        </div>
       )}
     </Layout>
   );
