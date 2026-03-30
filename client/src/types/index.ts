@@ -34,6 +34,12 @@ export interface Bill {
   notes?: string;
   created_at: string;
   updated_at: string;
+  gdrive_file_id?: string;
+  gdrive_folder_id?: string;
+  gdrive_synced_at?: string;
+  // Transient client-only field: set when bill was just created with a file,
+  // triggers Drive icon polling until gdrive_file_id appears
+  _drivePending?: boolean;
 }
 
 export interface AuthTokens {

@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Edit, Trash2 } from 'lucide-react';
 import type { Bill } from '../types';
 import api from '../lib/api';
 import { CATEGORY_COLORS, BILL_ICONS } from '../lib/constants';
 import './BillCard.css';
+
 
 interface Props {
   bill: Bill;
@@ -55,19 +57,101 @@ const formatTsShort = (iso: string) => {
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 };
 
+// Drive icon states:
+//  'idle'     - no Drive file and none pending
+//  'pending'  - file was uploaded, waiting for server async upload to complete
+//  'uploading' - user is manually uploading a file right now
+//  'synced'   - gdrive_file_id is set (shown via bill.gdrive_file_id)
+//  'failed'   - upload timed out or errored
+type DriveState = 'idle' | 'pending' | 'uploading' | 'failed';
+
 export const BillCard: React.FC<Props> = ({
   bill, onUpdated, onDeleted, onEdit, onUndoableAction, onPress
 }) => {
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSnapped, setIsSnapped] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+
+  // Initialize drive state from bill prop
+  const [driveState, setDriveState] = useState<DriveState>(() =>
+    bill._drivePending && !bill.gdrive_file_id ? 'pending' : 'idle'
+  );
+
   const touchStart = useRef<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const driveFileRef = useRef<HTMLInputElement>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ─── Drive upload polling ──────────────────────────────────────────────────
+  // When a bill was just created with a scanned file, the server uploads to Drive
+  // asynchronously. Poll every 2s until gdrive_file_id appears (max 30s).
+  useEffect(() => {
+    if (!bill._drivePending || bill.gdrive_file_id) return;
+
+    setDriveState('pending');
+    let attempts = 0;
+    const MAX_ATTEMPTS = 15; // 15 × 2s = 30 seconds
+
+    pollingRef.current = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await api.get(`/bills/${bill.id}`);
+        if (res.data.gdrive_file_id) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setDriveState('idle'); // bill.gdrive_file_id being set is enough to show icon
+          onUpdated({ ...res.data, _drivePending: false });
+        } else if (attempts >= MAX_ATTEMPTS) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setDriveState('failed'); // Timed out → show gray icon
+        }
+      } catch {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        setDriveState('failed');
+      }
+    }, 2000);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bill.id, bill._drivePending]);
+
+  // If bill gets gdrive_file_id from outside (e.g. parent re-fetched), clear pending
+  useEffect(() => {
+    if (bill.gdrive_file_id && driveState === 'pending') {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      setDriveState('idle');
+    }
+  }, [bill.gdrive_file_id, driveState]);
+
+  // ─── Manual Drive upload (from hamburger menu) ────────────────────────────
+  const handleDriveFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setDriveState('uploading');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await api.post(
+        `/properties/${bill.property_id}/bills/${bill.id}/drive-files`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      setDriveState('idle');
+      onUpdated(res.data); // Updated bill now has gdrive_file_id set
+    } catch {
+      setDriveState('failed');
+    } finally {
+      e.target.value = ''; // Reset file input
+    }
+  };
+
+  // ─── Click outside to close menu / snap ───────────────────────────────────
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
-      // Close snap if clicking card main
       if (!isSnapped) return;
       if (!menuRef.current?.contains(e.target as Node)) {
         setIsSnapped(false);
@@ -78,6 +162,7 @@ export const BillCard: React.FC<Props> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSnapped]);
 
+  // ─── Status update ────────────────────────────────────────────────────────
   const updateStatus = async (newStatus: 'waiting' | 'paid' | 'partial', newPaidAmount?: number) => {
     try {
       const res = await api.put(`/bills/${bill.id}`, {
@@ -112,6 +197,7 @@ export const BillCard: React.FC<Props> = ({
     onDeleted?.(bill.id);
   };
 
+  // ─── Swipe gestures ───────────────────────────────────────────────────────
   const onTouchStart = (e: React.TouchEvent) => {
     if (bill.status === 'paid') return;
     touchStart.current = e.touches[0].clientX;
@@ -122,7 +208,6 @@ export const BillCard: React.FC<Props> = ({
     const currentX = e.touches[0].clientX;
     const diff = currentX - touchStart.current;
 
-    // Smoothly drag up to 100px
     if (diff > 0) {
       setSwipeOffset(Math.min(diff, 100));
     } else if (isSnapped && diff < 0) {
@@ -141,21 +226,17 @@ export const BillCard: React.FC<Props> = ({
     touchStart.current = null;
   };
 
+  // ─── Amount display ────────────────────────────────────────────────────────
   const amountDisplay = (() => {
     const total = bill.amount || 0;
     const paid = bill.paid_amount || 0;
     
-    // Show X/Y if partial OR if it was paid but we want to see the balance (like if total changed)
     if (bill.status === 'partial' || (bill.status === 'paid' && paid > 0 && paid !== total)) {
       return `${paid.toLocaleString('he-IL', { minimumFractionDigits: 0 })}/${total.toLocaleString('he-IL', { minimumFractionDigits: 0 })}`;
     }
-    
-    // If it's paid in full, just show the total with shekel sign
     if (bill.status === 'paid') {
       return `₪${total.toLocaleString('he-IL', { minimumFractionDigits: 0 })}`;
     }
-
-    // Default: unpaid, show total
     return `₪${total.toLocaleString('he-IL', { minimumFractionDigits: 0 })}`;
   })();
 
@@ -168,6 +249,25 @@ export const BillCard: React.FC<Props> = ({
   })();
 
   const accentColor = getCategoryColor(bill.bill_type);
+
+  // ─── Drive icon logic ─────────────────────────────────────────────────────
+  const hasDriveFile   = !!bill.gdrive_file_id;
+  const isPending      = driveState === 'pending';
+  const isUploading    = driveState === 'uploading';
+  const isFailed       = driveState === 'failed';
+  const showDriveIcon  = hasDriveFile || isPending || isUploading || isFailed;
+
+  const driveTitle = isPending || isUploading
+    ? 'מעלה ל-Google Drive...'
+    : isFailed
+      ? 'שגיאה בהעלאה ל-Drive'
+      : 'שמור ב-Google Drive';
+
+  const driveBadgeClass = [
+    'gdrive-badge',
+    isPending || isUploading ? 'drive-pending' : '',
+    isFailed ? 'drive-failed' : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <div className="bill-swipe-wrapper" style={{ zIndex: (showMenu || isSnapped) ? 1002 : 1 }}>
@@ -217,24 +317,74 @@ export const BillCard: React.FC<Props> = ({
             </div>
           </div>
 
-          <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingLeft: '36px' }}>
-            <div className="bill-amount-pill">{amountDisplay}</div>
-            <span className={`badge-pill ${statusInfo.cls}`}>
-              {statusInfo.label}
-            </span>
+          <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', paddingLeft: '36px' }}>
+            {/* Google Drive badge — shows color, pulsing, or gray based on state */}
+            {showDriveIcon && (
+              <div className={driveBadgeClass} title={driveTitle}>
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
+                  alt="Google Drive"
+                  width={20}
+                  height={20}
+                  draggable={false}
+                />
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <div className="bill-amount-pill">{amountDisplay}</div>
+              <span className={`badge-pill ${statusInfo.cls}`}>
+                {statusInfo.label}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="bill-kebab-container" ref={menuRef}>
+        <div className={`bill-kebab-container ${showMenu ? 'menu-open' : ''}`} ref={menuRef}>
           <button className="kebab-btn" onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}>⋮</button>
 
           {showMenu && (
             <div className="kebab-dropdown" onClick={e => e.stopPropagation()}>
-              <button className="kebab-option edit" onClick={() => { onEdit?.(bill); setShowMenu(false); }}>ערוך</button>
-              <button className="kebab-option delete" onClick={handleDelete}>מחק</button>
+              <button className="kebab-option edit" onClick={() => { onEdit?.(bill); setShowMenu(false); }}>
+                <Edit size={16} />
+                <span>ערוך</span>
+              </button>
+              <button
+                className="kebab-option drive-upload"
+                onClick={() => { driveFileRef.current?.click(); setShowMenu(false); }}
+                disabled={isUploading || isPending}
+              >
+                {isUploading ? (
+                  <span>מעלה...</span>
+                ) : (
+                  <>
+                    <img
+                      src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
+                      alt="Google Drive"
+                      width={15}
+                      height={15}
+                      draggable={false}
+                    />
+                    <span>העלה קבצים נוספים</span>
+                  </>
+                )}
+              </button>
+              <div className="kebab-divider" />
+              <button className="kebab-option delete" onClick={handleDelete}>
+                <Trash2 size={16} />
+                <span>מחק</span>
+              </button>
             </div>
           )}
         </div>
+
+        {/* Hidden file input for manual Drive upload */}
+        <input
+          ref={driveFileRef}
+          type="file"
+          accept="image/*,application/pdf"
+          style={{ display: 'none' }}
+          onChange={handleDriveFileChange}
+        />
       </div>
     </div>
   );

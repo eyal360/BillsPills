@@ -5,6 +5,76 @@ import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 export const authRouter = Router();
 
+// Store Google OAuth tokens for Drive access (called client-side after Google login)
+authRouter.post('/google-token', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { provider_token, provider_refresh_token } = req.body;
+  const userId = req.user!.id;
+
+  if (!provider_refresh_token) {
+    // Access token only — still save it, but warn that refresh is missing
+    logger.warn(`[Drive] No refresh token received for user ${userId}. Drive sync may fail after token expiry.`);
+  }
+
+  try {
+    // Only write fields that were actually supplied.
+    // CRITICAL: google_token_expiry must only be updated together with a fresh
+    // provider_token — otherwise the expiry timestamps a stale/expired token as valid.
+    const updateData: Record<string, any> = {};
+
+    if (provider_token) {
+      updateData.google_access_token = provider_token;
+      updateData.google_token_expiry = Date.now() + 3600 * 1000; // 1 hour from now
+    }
+
+    if (provider_refresh_token) {
+      updateData.google_refresh_token = provider_refresh_token;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      logger.warn(`[Drive] /google-token called but provider sent no tokens for user ${userId} — nothing stored`);
+      res.json({ ok: true });
+      return;
+    }
+
+    const { error } = await supabase.from('profiles').update(updateData).eq('id', userId);
+    if (error) throw error;
+
+    logger.info(`[Drive] Stored Google tokens for user ${userId} (hasAccess: ${!!provider_token}, hasRefresh: ${!!provider_refresh_token})`);
+    res.json({ ok: true });
+  } catch (err: any) {
+    logger.error('[Drive] Failed to store Google tokens:', err.message);
+    res.status(500).json({ error: 'Failed to store Google tokens' });
+  }
+});
+
+// Check if user has Google Drive tokens stored
+authRouter.get('/drive-status', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('google_refresh_token')
+    .eq('id', req.user!.id)
+    .single();
+
+  res.json({ hasTokens: !!(profile?.google_refresh_token) });
+});
+
+// Force-refresh the stored Google access token by zeroing the expiry.
+// This causes getValidAccessToken() to immediately refresh via the stored refresh_token.
+// Use this to recover from a stale-token state without requiring a full re-login.
+authRouter.post('/force-drive-refresh', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.user!.id;
+  try {
+    // Zero the expiry — getValidAccessToken will see it as expired and auto-refresh
+    await supabase.from('profiles').update({ google_token_expiry: 0 }).eq('id', userId);
+    logger.info(`[Drive] Forced token expiry reset for user ${userId}`);
+    res.json({ ok: true, message: 'Token expiry reset. Next Drive operation will auto-refresh.' });
+  } catch (err: any) {
+    logger.error('[Drive] Failed to reset token expiry:', err.message);
+    res.status(500).json({ error: 'Failed to reset token expiry' });
+  }
+});
+
+
 // Login
 authRouter.post('/login', async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;

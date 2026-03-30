@@ -167,7 +167,7 @@ html {
 }
 
 body {
-  font-family: 'Rubik', 'Heebo', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Heebo', sans-serif;
   background-color: var(--bg-base);
   color: var(--text-primary);
   direction: rtl;
@@ -176,6 +176,9 @@ body {
   overflow-x: hidden;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1;
   transition: background-color var(--transition-base), color var(--transition-base);
 }
 
@@ -514,8 +517,7 @@ h3.text-center {
 }
 
 .property-title {
-  font-family: inherit !important;
-  font-weight: 800;
+  font-weight: 700;
   font-size: clamp(2rem, 10vw, 3.2rem);
   text-transform: none;
   background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
@@ -523,7 +525,7 @@ h3.text-center {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 2px 4px rgba(0, 114, 255, 0.2));
-  letter-spacing: -2.5px;
+  letter-spacing: -1.5px;
 }
 
 .page-content {

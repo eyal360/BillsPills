@@ -48,7 +48,14 @@ export const LoginPage: React.FC = () => {
                 await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    redirectTo: window.location.origin
+                    redirectTo: window.location.origin,
+                    scopes: 'https://www.googleapis.com/auth/drive.file',
+                    queryParams: {
+                      access_type: 'offline',
+                      // No prompt: 'consent' — Google shows Drive consent once on first login,
+                      // then auto-signs in returning users (0 screens). Refresh token is
+                      // stored permanently in DB so Drive works indefinitely.
+                    },
                   }
                 });
               } catch (err: unknown) {

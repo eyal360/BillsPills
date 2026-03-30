@@ -1,7 +1,18 @@
 import { Router, Response } from 'express';
+import multer from 'multer';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
+import {
+  getValidAccessToken,
+  ensureBillFolderPath,
+  uploadFile as driveUploadFile,
+  renameItem,
+  buildDriveFilename,
+} from '../lib/googleDrive';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
 export const propertiesRouter = Router();
 
 // GET all properties for current user (owned and shared)
@@ -103,10 +114,10 @@ propertiesRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res:
   const { name, address, description, icon, is_archived } = req.body;
   const userEmail = req.user!.email?.toLowerCase();
 
-  // Verify access first
+  // Verify access first AND grab Drive folder info before any update
   const { data: property } = await supabase
     .from('properties')
-    .select('user_id')
+    .select('user_id, name, gdrive_folder_id')
     .eq('id', req.params.id)
     .single();
 
@@ -147,8 +158,27 @@ propertiesRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res:
     res.status(500).json({ error: updateError.message });
     return;
   }
+
+  // === Google Drive: Rename property folder if name changed ===
+  if (name && property?.gdrive_folder_id && name !== (property as any).name) {
+    const oldFolderId = (property as any).gdrive_folder_id;
+    // Fire-and-forget — do not block the response
+    (async () => {
+      try {
+        const accessToken = await getValidAccessToken(req.user!.id);
+        if (accessToken) {
+          await renameItem(accessToken, oldFolderId, name);
+          logger.info(`[Drive] Renamed property folder ${oldFolderId} → "${name}"`);
+        }
+      } catch (e: any) {
+        logger.error('[Drive] Failed to rename property folder:', e.message);
+      }
+    })();
+  }
+
   res.json(updated);
 });
+
 
 // DELETE property
 propertiesRouter.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -208,8 +238,8 @@ propertiesRouter.get('/:id/bills', requireAuth, async (req: AuthenticatedRequest
   res.json(data);
 });
 
-// POST add bill to property
-propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+// POST add bill to property (accepts multipart/form-data when a file is included)
+propertiesRouter.post('/:id/bills', requireAuth, upload.single('file'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userEmail = req.user!.email?.toLowerCase();
 
   // Verify access
@@ -248,7 +278,8 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
     billing_period_start, 
     billing_period_end,
     processing_duration_ms
-  } = req.body;
+  } = req.body.bill_data ? JSON.parse(req.body.bill_data) : req.body;
+
   logger.info('Creating bill for property:', { id: req.params.id, body: req.body });
 
   const { data, error } = await supabase
@@ -339,10 +370,185 @@ propertiesRouter.post('/:id/bills', requireAuth, async (req: AuthenticatedReques
     });
   }
 
-  res.status(201).json(data);
+  // === Google Drive: Upload bill file asynchronously ===
+  const fileBuffer = req.file?.buffer;
+  const fileOriginalName = req.file?.originalname || 'bill';
+  const fileMimeType = req.file?.mimetype || 'application/octet-stream';
+
+  if (fileBuffer) {
+    logger.info(`[Drive] File received for bill ${data.id}: "${fileOriginalName}" (${fileMimeType}, ${fileBuffer.length} bytes)`);
+    const savedBillId = data.id;
+    const savedPropertyId = req.params.id;
+
+    (async () => {
+      try {
+        // Get property name for folder
+        const { data: propRow, error: propErr } = await supabase
+          .from('properties')
+          .select('name, gdrive_folder_id')
+          .eq('id', savedPropertyId)
+          .single();
+
+        if (propErr) {
+          logger.error(`[Drive] Could not fetch property ${savedPropertyId}:`, propErr.message);
+          return;
+        }
+
+        const accessToken = await getValidAccessToken(req.user!.id);
+        if (!accessToken) {
+          logger.warn(`[Drive] Skipping bill ${savedBillId}: no valid access token. Run DB migrations and log out/in again.`);
+          return;
+        }
+        if (!propRow) {
+          logger.warn(`[Drive] Skipping bill ${savedBillId}: property not found`);
+          return;
+        }
+
+        logger.info(`[Drive] Starting upload for bill ${savedBillId} → property "${propRow.name}"`);
+
+        const path = await ensureBillFolderPath(
+          accessToken,
+          propRow.name,
+          bill_type || 'אחר',
+          billing_period_start,
+          billing_period_end
+        );
+
+        // Store property folder ID if not already saved
+        if (!propRow.gdrive_folder_id) {
+          await supabase.from('properties').update({ gdrive_folder_id: path.propertyId }).eq('id', savedPropertyId);
+        }
+
+        const driveFilename = buildDriveFilename(bill_type || 'אחר', billing_period_start, billing_period_end, fileOriginalName);
+        const driveFileId = await driveUploadFile(accessToken, path.monthId, driveFilename, fileBuffer, fileMimeType);
+
+        await supabase.from('bills').update({
+          gdrive_file_id: driveFileId,
+          gdrive_folder_id: path.monthId,
+          gdrive_synced_at: new Date().toISOString(),
+        }).eq('id', savedBillId);
+
+        logger.info(`[Drive] ✅ Bill ${savedBillId} uploaded as "${driveFilename}" (fileId: ${driveFileId})`);
+      } catch (e: any) {
+        logger.error(`[Drive] ❌ Upload failed for bill ${data.id}: ${e.message}`, e.stack?.split('\n')[1] || '');
+      }
+    })();
+  } else {
+    logger.info(`[Drive] No file attached to bill ${data.id} — skipping Drive upload`);
+  }
+
+  // Include _drivePending so the client can show a loading Drive icon and poll for the file ID
+  res.status(201).json({ ...data, _drivePending: !!req.file?.buffer });
 });
 
-// GET events for a specific bill in a property
+
+// POST manually upload a file to a bill's Google Drive folder
+// Used for: manual bills (no OCR file), or adding extra files to an existing bill
+propertiesRouter.post('/:id/bills/:billId/drive-files', requireAuth, upload.single('file'), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { id: propertyId, billId } = req.params;
+  const userEmail = req.user!.email?.toLowerCase();
+
+  if (!req.file) {
+    res.status(400).json({ error: 'No file uploaded' });
+    return;
+  }
+
+  // Verify property access
+  const { data: property } = await supabase
+    .from('properties')
+    .select('user_id, name')
+    .eq('id', propertyId)
+    .single();
+
+  if (!property) {
+    res.status(404).json({ error: 'Property not found' });
+    return;
+  }
+
+  if (property.user_id !== req.user!.id) {
+    const { data: share } = await supabase
+      .from('property_shares')
+      .select('id')
+      .eq('property_id', propertyId)
+      .eq('email', userEmail)
+      .single();
+    if (!share) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+  }
+
+  // Fetch the bill
+  const { data: bill } = await supabase
+    .from('bills')
+    .select('*')
+    .eq('id', billId)
+    .eq('property_id', propertyId)
+    .single();
+
+  if (!bill) {
+    res.status(404).json({ error: 'Bill not found' });
+    return;
+  }
+
+  try {
+    const accessToken = await getValidAccessToken(req.user!.id);
+    if (!accessToken) {
+      res.status(503).json({ error: 'Google Drive is not connected. Please log out and log back in.' });
+      return;
+    }
+
+    // Create folder path if it doesn\'t exist yet (idempotent)
+    const path = await ensureBillFolderPath(
+      accessToken,
+      property.name,
+      bill.bill_type || 'אחר',
+      bill.billing_period_start,
+      bill.billing_period_end
+    );
+
+    const driveFilename = buildDriveFilename(
+      bill.bill_type || 'אחר',
+      bill.billing_period_start,
+      bill.billing_period_end,
+      req.file.originalname
+    );
+
+    const driveFileId = await driveUploadFile(
+      accessToken,
+      path.monthId,
+      driveFilename,
+      req.file.buffer,
+      req.file.mimetype
+    );
+
+    // Update bill: set gdrive_file_id only if not already set (don\'t overwrite the primary file link)
+    const updateFields: Record<string, any> = {
+      gdrive_folder_id: path.monthId,
+      gdrive_synced_at: new Date().toISOString(),
+    };
+    if (!bill.gdrive_file_id) {
+      updateFields.gdrive_file_id = driveFileId;
+    }
+
+    const { data: updatedBill, error: updateErr } = await supabase
+      .from('bills')
+      .update(updateFields)
+      .eq('id', billId)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    logger.info(`[Drive] ✅ Manual upload: "${driveFilename}" added to bill ${billId} folder`);
+    res.json(updatedBill);
+  } catch (err: any) {
+    logger.error('[Drive] Manual upload failed:', err.message);
+    res.status(500).json({ error: 'Drive upload failed: ' + err.message });
+  }
+});
+
+
 propertiesRouter.get('/:id/bills/:billId/events', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userEmail = req.user!.email?.toLowerCase();
   const { id: propertyId, billId } = req.params;

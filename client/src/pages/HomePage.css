@@ -86,12 +86,13 @@
 }
 
 .property-name {
-  font-weight: 800;
-  font-size: 1.2rem;
+  font-weight: 700;
+  font-size: 1.25rem;
   color: var(--text-primary);
   line-height: 1.2;
   word-break: break-word;
   max-width: 100%;
+  letter-spacing: -0.01em;
 }
 
 .property-address {

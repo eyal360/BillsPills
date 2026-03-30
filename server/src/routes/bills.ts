@@ -4,6 +4,18 @@ import { logger } from '../lib/logger';
 import { getPromptTemplate } from '../lib/prompts';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabase } from '../lib/supabase';
+import {
+  getValidAccessToken,
+  ensureBillFolderPath,
+  moveFile as driveMoveFile,
+  deleteBillFileAndCleanup,
+  cleanupEmptyFolderCascade,
+  getBillYear,
+  getMonthRangeLabel,
+} from '../lib/googleDrive';
+
+
+
 
 export const billsRouter = Router();
 
@@ -236,12 +248,13 @@ billsRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Resp
   const userEmail = req.user!.email?.toLowerCase();
   logger.info('Updating bill:', { id: req.params.id, body: req.body });
 
-  // 1. Fetch current bill (including paid_amount for delta calculation)
+  // 1. Fetch current bill (including paid_amount for delta calculation + dates for Drive path comparison)
   const { data: oldBill } = await supabase
     .from('bills')
-    .select('property_id, status, amount, bill_type, paid_amount')
+    .select('property_id, status, amount, bill_type, paid_amount, billing_period_start, billing_period_end')
     .eq('id', req.params.id)
     .single();
+
 
   if (!oldBill) {
     res.status(404).json({ error: 'Bill not found' });
@@ -332,11 +345,74 @@ billsRouter.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Resp
 
   // Note: We deliberately exclude the general bill 'notes' from the timeline record 
   // to avoid duplication, as requested.
+ 
+  // === Google Drive: Move file only if the computed folder PATH actually changed ===
+  //
+  // IMPORTANT: We compare at the folder-label level (type + year-string + month-label),
+  // not at the raw field level. This prevents unnecessary ensureBillFolderPath() calls
+  // that could race with the async upload IIFE and create duplicate Drive folders.
+  const newBillType = bill_type || oldBill.bill_type;
+  const newStart = billing_period_start !== undefined ? billing_period_start : oldBill.billing_period_start;
+  const newEnd   = billing_period_end   !== undefined ? billing_period_end   : oldBill.billing_period_end;
+
+  const drivePathChanged =
+    oldBill.bill_type !== newBillType ||
+    getBillYear(oldBill.billing_period_start)                                       !== getBillYear(newStart) ||
+    getMonthRangeLabel(oldBill.billing_period_start, oldBill.billing_period_end)    !== getMonthRangeLabel(newStart, newEnd);
+
+  if (drivePathChanged) {
+    // Load fresh bill to get gdrive fields
+    const { data: freshBill } = await supabase
+      .from('bills')
+      .select('gdrive_file_id, gdrive_folder_id, property_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (freshBill?.gdrive_file_id && freshBill?.gdrive_folder_id) {
+      const { data: propRow } = await supabase
+        .from('properties')
+        .select('name')
+        .eq('id', freshBill.property_id)
+        .single();
+
+      const oldFolderId = freshBill.gdrive_folder_id;
+      const fileId = freshBill.gdrive_file_id;
+      const userId = req.user!.id;
+      const billId = req.params.id;
+
+      (async () => {
+        try {
+          const accessToken = await getValidAccessToken(userId);
+          if (!accessToken || !propRow) return;
+
+          const newPath = await ensureBillFolderPath(accessToken, propRow.name, newBillType, newStart, newEnd);
+          const newFolderId = newPath.monthId;
+
+          if (newFolderId !== oldFolderId) {
+            await driveMoveFile(accessToken, fileId, newFolderId, oldFolderId);
+
+            // Update DB with new folder
+            await supabase.from('bills').update({
+              gdrive_folder_id: newFolderId,
+              gdrive_synced_at: new Date().toISOString(),
+            }).eq('id', billId);
+
+            // Unified cleanup: cascade from old month → year → type, deleting empty folders
+            await cleanupEmptyFolderCascade(accessToken, oldFolderId);
+          }
+          logger.info(`[Drive] ✅ Moved file ${fileId} for updated bill ${billId}`);
+        } catch (e: any) {
+          logger.error('[Drive] Failed to move file on bill update:', e?.message || String(e));
+        }
+      })();
+    }
+  }
+
   await supabase.from('bill_events').insert({
     bill_id: req.params.id,
     user_id: req.user!.id,
     title: eventTitle,
-    note: eventNote, // Only payment-specific data here
+    note: eventNote,
   });
 
   res.json(updatedBill);
@@ -383,11 +459,38 @@ billsRouter.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: R
     }
   }
 
+  // Load Drive refs before deleting from DB
+  const { data: billForDrive } = await supabase
+    .from('bills')
+    .select('gdrive_file_id, gdrive_folder_id')
+    .eq('id', req.params.id)
+    .single();
+
   const { error } = await supabase.from('bills').delete().eq('id', req.params.id);
   if (error) {
     res.status(500).json({ error: error.message });
     return;
   }
+
+  // === Google Drive: Delete file and cascade-clean empty folders ===
+  if (billForDrive?.gdrive_file_id && billForDrive?.gdrive_folder_id) {
+    const fileId = billForDrive.gdrive_file_id;
+    const monthFolderId = billForDrive.gdrive_folder_id;
+    const userId = req.user!.id;
+    (async () => {
+      try {
+        const accessToken = await getValidAccessToken(userId);
+        if (!accessToken) return;
+        // Unified function: deletes file + cascades month → year → type cleanup
+        await deleteBillFileAndCleanup(accessToken, fileId, monthFolderId);
+        logger.info(`[Drive] ✅ Drive file ${fileId} deleted and empty folders cleaned up`);
+      } catch (e: any) {
+        logger.error('[Drive] Failed to delete Drive file:', e.message);
+      }
+    })();
+  }
+
+
   res.json({ message: 'Bill deleted' });
 });
 
@@ -597,8 +700,25 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       parseFloat(String(extracted.amount || extracted.extracted_data?.amount || extracted.extracted_data?.total_amount)) : 
       null;
     
-    const billingPeriodStart = extracted.billing_period_start || extracted.extracted_data?.billing_period_start || null;
-    const billingPeriodEnd = extracted.billing_period_end || extracted.extracted_data?.billing_period_end || null;
+    let billingPeriodStart: string | null = extracted.billing_period_start || extracted.extracted_data?.billing_period_start || null;
+    let billingPeriodEnd: string | null = extracted.billing_period_end || extracted.extracted_data?.billing_period_end || null;
+
+    // Safety cap: billing periods are at most 2 consecutive months.
+    // If the AI extracts a range > 2 months, trim to the first 2.
+    if (billingPeriodStart && billingPeriodEnd) {
+      const start = new Date(billingPeriodStart);
+      const end = new Date(billingPeriodEnd);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        const monthDiff = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+        if (monthDiff > 1) {
+          // Clamp to end of 2nd month from start
+          const clampedEnd = new Date(start.getFullYear(), start.getMonth() + 2, 0); // last day of month+1
+          billingPeriodEnd = clampedEnd.toISOString().split('T')[0];
+          logger.warn(`[OCR] Clamped billing period from ${end.toISOString().split('T')[0]} to ${billingPeriodEnd} (was ${monthDiff + 1} months)`);
+        }
+      }
+    }
+
     const propertyId = extracted.matched_property_id || extracted.extracted_data?.matched_property_id || null;
     const recognizedPropertyName = extracted.recognized_property_name || extracted.extracted_data?.recognized_property_name || extracted.extracted_data?.property_name || extracted.extracted_data?.address || null;
     const isAutomaticPayment = extracted.is_automatic_payment || extracted.extracted_data?.is_automatic_payment || false;

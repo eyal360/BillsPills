@@ -542,7 +542,18 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
           });
         }
       } else {
-        res = await api.post<Bill>(`/properties/${currentPropertyId}/bills`, payload);
+        // If we have the original scanned file, send it alongside the bill metadata
+        // so the server can upload it to Google Drive
+        if (lastOcrFile) {
+          const formData = new FormData();
+          formData.append('bill_data', JSON.stringify(payload));
+          formData.append('file', lastOcrFile, lastOcrFile.name);
+          res = await api.post<Bill>(`/properties/${currentPropertyId}/bills`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        } else {
+          res = await api.post<Bill>(`/properties/${currentPropertyId}/bills`, payload);
+        }
       }
 
       // Refresh list of unique bill types
