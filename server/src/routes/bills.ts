@@ -728,48 +728,6 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
 
     logger.info(`OCR Success: Type=${billType}, Amount=${amount}, Period=${billingPeriodStart} to ${billingPeriodEnd}, PropMatch=${propertyId}`);
 
-    // Generate embedding in-memory (consolidated pipeline)
-    let billEmbedding: number[] | null = null;
-    try {
-      let model = process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004';
-      if (model.startsWith('models/')) {
-        model = model.replace('models/', '');
-      }
-      
-      const rawContentToEmbed = `סוג: ${billType} | סכום: ${amount} | מציג: ${JSON.stringify(extracted.extracted_data || extracted).substring(0, 500)}`;
-      
-      const isPreview = model.includes('preview');
-      const textToEmbed = isPreview ? `title: none | text: ${rawContentToEmbed}` : rawContentToEmbed;
-      
-      const payload: any = {
-        content: { parts: [{ text: textToEmbed }] }
-      };
-
-      if (isPreview) {
-        payload.outputDimensionality = 768; // Crucial match for DB vector
-      } else {
-        payload.taskType = 'RETRIEVAL_DOCUMENT';
-      }
-
-      const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`;
-      const embedRes = await fetch(embedUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(15000)
-      });
-
-      if (!embedRes.ok) {
-        throw new Error(`Embedding request failed: ${embedRes.statusText}`);
-      }
-
-      const embedData: any = await embedRes.json();
-      billEmbedding = embedData.embedding.values;
-    } catch (embedErr: any) {
-      logger.error('Embedding generation failure during OCR:', embedErr.message);
-      // We don't fail the whole OCR if embedding fails, but we log it
-    }
-
     res.json({
       bill_type: billType,
       amount,
@@ -782,8 +740,7 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
       is_automatic_payment: isAutomaticPayment,
       is_general_link: isGeneralLink,
       extracted_data: extracted.extracted_data || extracted,
-      processing_duration_ms: Date.now() - startTimeOCR,
-      embedding: billEmbedding
+      processing_duration_ms: Date.now() - startTimeOCR
     });
   } catch (err: any) {
     logger.error('OCR error:', { message: err.message, stack: err.stack });

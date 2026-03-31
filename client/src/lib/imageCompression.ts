@@ -1,6 +1,6 @@
 import imageCompression from 'browser-image-compression';
 
-const MAX_SIZE_MB = 4.5;
+const MAX_SIZE_MB = 4.0;
 const MAX_DIMENSION = 1200; // Reduced from 2048 to speed up compression significantly for OCR
 
 export interface CompressionResult {
