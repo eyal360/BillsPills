@@ -160,6 +160,18 @@
   padding: 0;
 }
 
+/* Browsers apply system UI fonts to form elements by default,
+   bypassing the cascade. Force-inherit Heebo everywhere. */
+button,
+input,
+select,
+textarea,
+optgroup {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;

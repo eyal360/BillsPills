@@ -22,6 +22,15 @@
   margin-bottom: var(--space-lg);
 }
 
+/* Label above the email input — must be readable on all themes */
+.share-modal .input-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  display: block;
+}
+
 .share-input-section {
   display: flex;
   flex-direction: column;
@@ -84,7 +93,7 @@
 
 .no-shares-text {
   font-size: 0.85rem;
-  color: var(--text-tertiary, #9ca3af);
+  color: var(--text-secondary);
   font-style: italic;
   padding: 4px 0;
 }
