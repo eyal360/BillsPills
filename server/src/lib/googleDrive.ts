@@ -398,13 +398,20 @@ export async function ensureBillFolderPath(
   propertyName: string,
   billType: string,
   startIso: string | undefined,
-  endIso: string | undefined
+  endIso: string | undefined,
+  cachedPropertyFolderId?: string | null
 ): Promise<BillFolderPath> {
   const year = getBillYear(startIso);
   const month = getMonthRangeLabel(startIso, endIso);
 
-  const rootId = await ensureFolder(accessToken, 'BillsPills');
-  const propertyFolderId = await ensureFolder(accessToken, propertyName, rootId);
+  let rootId = '';
+  let propertyFolderId = cachedPropertyFolderId || '';
+
+  if (!propertyFolderId) {
+    rootId = await ensureFolder(accessToken, 'BillsPills');
+    propertyFolderId = await ensureFolder(accessToken, propertyName, rootId);
+  }
+
   const billsFolderId = await ensureFolder(accessToken, 'חשבונות', propertyFolderId);
   const typeFolderId = await ensureFolder(accessToken, billType, billsFolderId);
   const yearFolderId = await ensureFolder(accessToken, year, typeFolderId);

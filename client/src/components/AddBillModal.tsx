@@ -589,7 +589,7 @@ export const AddBillModal: React.FC<Props> = ({ propertyId, editingBill, onClose
       setTimeout(() => {
         if (activeProcessId) removeProcess(activeProcessId);
         setLoading(false);
-        onAdded(res.data);
+        onAdded({ ...res.data, _drivePending: !!lastOcrFile });
       }, 1000);
 
     } catch (err: any) {

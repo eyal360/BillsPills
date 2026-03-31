@@ -422,7 +422,8 @@ propertiesRouter.post('/:id/bills', requireAuth, upload.single('file'), async (r
           propRow.name,
           bill_type || 'אחר',
           billing_period_start,
-          billing_period_end
+          billing_period_end,
+          propRow.gdrive_folder_id
         );
 
         // Store property folder ID if not already saved
