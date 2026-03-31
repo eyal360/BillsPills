@@ -84,18 +84,19 @@ export const BillCard: React.FC<Props> = ({
 
   // ─── Drive upload polling ──────────────────────────────────────────────────
   // When a bill was just created with a scanned file, the server uploads to Drive
-  // asynchronously. Poll every 2s until gdrive_file_id appears (max 30s).
+  // asynchronously. Poll every 3s until gdrive_file_id appears (max 60s).
   useEffect(() => {
     if (!bill._drivePending || bill.gdrive_file_id) return;
 
     setDriveState('pending');
     let attempts = 0;
-    const MAX_ATTEMPTS = 15; // 15 × 2s = 30 seconds
+    const MAX_ATTEMPTS = 20; // 20 × 3s = 60 seconds
 
     pollingRef.current = setInterval(async () => {
       attempts++;
       try {
-        const res = await api.get(`/bills/${bill.id}`);
+        // Cache-buster ensures Vercel/browser doesn't return stale 304 Not Modified
+        const res = await api.get(`/bills/${bill.id}?_t=${Date.now()}`);
         if (res.data.gdrive_file_id) {
           if (pollingRef.current) clearInterval(pollingRef.current);
           setDriveState('idle'); // bill.gdrive_file_id being set is enough to show icon
@@ -108,7 +109,7 @@ export const BillCard: React.FC<Props> = ({
         if (pollingRef.current) clearInterval(pollingRef.current);
         setDriveState('failed');
       }
-    }, 2000);
+    }, 3000);
 
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
