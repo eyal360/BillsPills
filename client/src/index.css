@@ -158,10 +158,15 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  /* Force every element to inherit the app font (Heebo).
+     Author styles always beat user-agent defaults, so this wins over
+     browser built-in fonts on button, input, select, textarea, and
+     any third-party component elements (e.g. antd-mobile pickers). */
+  font-family: inherit;
 }
 
-/* Browsers apply system UI fonts to form elements by default,
-   bypassing the cascade. Force-inherit Heebo everywhere. */
+/* Explicit rule for form elements — belt-and-suspenders for any
+   browser that handles the universal selector differently. */
 button,
 input,
 select,

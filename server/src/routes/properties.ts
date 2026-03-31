@@ -324,18 +324,28 @@ propertiesRouter.post('/:id/bills', requireAuth, upload.single('file'), async (r
     const apiKey = process.env.GEMINI_API_KEY || '';
     
     // Create a searchable text representation of the bill
-    const contentToEmbed = `סוג חשבון: ${bill_type}\nסכום: ${amount}\nנתונים שחולצו: ${JSON.stringify(extracted_data)}`;
+    const rawContentToEmbed = `סוג חשבון: ${bill_type}\nסכום: ${amount}\nנתונים שחולצו: ${JSON.stringify(extracted_data)}`;
     
     logger.info(`Generating embedding for bill ${data.id} using ${model} (Direct REST)...`);
     
+    const isPreview = model.includes('preview');
+    const textToEmbed = isPreview ? `title: none | text: ${rawContentToEmbed}` : rawContentToEmbed;
+    
+    const payload: any = {
+      content: { parts: [{ text: textToEmbed }] }
+    };
+
+    if (isPreview) {
+      payload.outputDimensionality = 768; // Crucial match for DB vector
+    } else {
+      payload.taskType = 'RETRIEVAL_DOCUMENT';
+    }
+
     const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`;
     const embedRes = await fetch(embedUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: { parts: [{ text: contentToEmbed }] },
-        taskType: 'RETRIEVAL_DOCUMENT'
-      })
+      body: JSON.stringify(payload)
     });
 
     if (!embedRes.ok) {
@@ -349,11 +359,12 @@ propertiesRouter.post('/:id/bills', requireAuth, upload.single('file'), async (r
       throw new Error('Generated embedding is empty');
     }
 
+    // Save to bill_documents table for RAG
     const { error: insertError } = await supabase.from('bill_documents').insert({
       bill_id: data.id,
       property_id: req.params.id,
       user_id: req.user!.id,
-      content: contentToEmbed,
+      content: rawContentToEmbed,
       embedding: embedding
     });
 

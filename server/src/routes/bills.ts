@@ -736,17 +736,26 @@ billsRouter.post('/ocr', requireAuth, upload.single('file'), async (req: Authent
         model = model.replace('models/', '');
       }
       
-      // Minimal content for faster embedding
-      const contentToEmbed = `סוג: ${billType} | סכום: ${amount} | מציג: ${JSON.stringify(extracted.extracted_data || extracted).substring(0, 500)}`;
+      const rawContentToEmbed = `סוג: ${billType} | סכום: ${amount} | מציג: ${JSON.stringify(extracted.extracted_data || extracted).substring(0, 500)}`;
       
+      const isPreview = model.includes('preview');
+      const textToEmbed = isPreview ? `title: none | text: ${rawContentToEmbed}` : rawContentToEmbed;
+      
+      const payload: any = {
+        content: { parts: [{ text: textToEmbed }] }
+      };
+
+      if (isPreview) {
+        payload.outputDimensionality = 768; // Crucial match for DB vector
+      } else {
+        payload.taskType = 'RETRIEVAL_DOCUMENT';
+      }
+
       const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`;
       const embedRes = await fetch(embedUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: { parts: [{ text: contentToEmbed }] },
-          taskType: 'RETRIEVAL_DOCUMENT'
-        }),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(15000)
       });
 

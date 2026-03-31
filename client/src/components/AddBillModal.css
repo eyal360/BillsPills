@@ -223,6 +223,13 @@
   transition-duration: 150ms !important;
 }
 
+/* Force Heebo on all antd-mobile elements — the library ships its own
+   font-family with !important, so we match that here */
+[class^="adm-"],
+[class*=" adm-"] {
+  font-family: 'Heebo', sans-serif !important;
+}
+
 .adm-picker-header {
   border-bottom: 1px solid var(--border-subtle);
 }
